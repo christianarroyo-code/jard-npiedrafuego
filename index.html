@@ -14,6 +14,9 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-storage-compat.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&family=Lora:ital,wght@0,500;0,600;0,700;1,500&display=swap" rel="stylesheet">
@@ -262,13 +265,6 @@ select.finput option{background:white}
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(12px);background:var(--ink);color:white;padding:12px 20px;border-radius:var(--rp);font-size:.82rem;font-weight:700;opacity:0;transition:all .3s var(--ease);z-index:300;pointer-events:none;max-width:320px;text-align:center;box-shadow:0 12px 32px rgba(14,43,27,.35)}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
-/* SYNC PANEL */
-.syncpanel{background:linear-gradient(160deg,var(--green-xpale),var(--surface));border:1px solid var(--border-mid);border-radius:var(--r);padding:18px;margin-bottom:16px;box-shadow:var(--shadow-xs)}
-.syncpanel-title{font-size:.8rem;font-weight:800;color:var(--green-800);margin-bottom:11px;display:flex;align-items:center;gap:7px}
-.syncpanel label{font-size:.78rem;color:var(--ink-mid);margin-bottom:8px;font-weight:700;display:block}
-.syncid-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--rs);padding:11px 13px;font-size:.75rem;font-family:'SFMono-Regular',Consolas,monospace;word-break:break-all;margin-bottom:11px;color:var(--ink-mid)}
-.syncpanel .hint{font-size:.7rem;color:var(--ink-muted);margin-top:9px;line-height:1.5}
-
 /* ACTIONS */
 .mactions{padding:16px 22px 22px;display:flex;gap:9px;flex-wrap:wrap;border-top:1px solid var(--border)}
 
@@ -419,23 +415,9 @@ select.finput option{background:white}
     <h2>Catálogo</h2>
     <div class="toolrow">
       <button class="toolbtn" onclick="syncNow()">🔄 Sync</button>
-      <button class="toolbtn" onclick="showSyncPanel()">⚙️ Sync ID</button>
       <button class="toolbtn ember" onclick="exportPDF()">📄 PDF</button>
       <button class="toolbtn accent" onclick="exportExcel()">📊 Excel</button>
     </div>
-  </div>
-  <!-- SYNC PANEL -->
-  <div id="syncPanel" class="syncpanel" style="display:none">
-    <div class="syncpanel-title">⚙️ Configuración de sincronización</div>
-    <label>Tu ID de sincronización</label>
-    <div id="myBinIdDisplay" class="syncid-box">Cargando...</div>
-    <button class="btn btn-g btn-sm" style="margin-bottom:14px" onclick="copyBinId()">📋 Copiar ID</button>
-    <label>Usar ID de otro dispositivo</label>
-    <div style="display:flex;gap:8px">
-      <input type="text" id="manualBinId" class="finput" placeholder="Pega el ID aquí..." style="flex:1;font-size:.75rem">
-      <button class="btn btn-o btn-sm" onclick="applyManualBinId()">✅ Aplicar</button>
-    </div>
-    <div class="hint">Comparte tu ID con otros usuarios para sincronizar el mismo jardín</div>
   </div>
   <div class="searchbar">
     <span>🔍</span>
@@ -462,24 +444,34 @@ select.finput option{background:white}
 
 <script>
 // ============================================================
-// STATE & SYNC
+// STATE & SYNC (Firebase Firestore + Storage)
 // ============================================================
-var JSONBIN_KEY = '$2a$10$5InzYR5nsi8ooxsqo0IiMOYwkkYxKxSQMIXQ3MLYjiz71U8kWlF4S';
-var BIN_ID = '6a41349bf5f4af5e293d72ab'; // ID compartido fijo para todos los dispositivos
+var firebaseConfig = {
+  apiKey: "AIzaSyBBDEeOlgMZu2NqHu-S_zwGDxv-ci1bOIw",
+  authDomain: "jardin-d3092.firebaseapp.com",
+  projectId: "jardin-d3092",
+  storageBucket: "jardin-d3092.firebasestorage.app",
+  messagingSenderId: "398525098030",
+  appId: "1:398525098030:web:977c663f651aa6da3257bf"
+};
+// Si el SDK de Firebase no llega a cargar (red, bloqueador, etc.) la app debe
+// seguir funcionando en modo solo-local en vez de romperse por completo
+var db = null, fbStorage = null;
+try {
+  firebase.initializeApp(firebaseConfig);
+  db = firebase.firestore();
+  fbStorage = firebase.storage();
+} catch(fbInitErr) {
+  console.log('Firebase no disponible:', fbInitErr);
+}
+
 var catalog = [];
 var mImg = null;
 var fImg = null;
 var obsImg = null;
 var editingId = null; // id de la planta en edición, null = alta nueva
 var syncStatus = 'idle'; // idle, syncing, error
-
-function getBinId() {
-  return '6a41349bf5f4af5e293d72ab'; // ID fijo compartido
-}
-function setBinId(id) {
-  localStorage.setItem('jpf_bin_id', id);
-  BIN_ID = id;
-}
+var dirtyIds = {}; // ids de plantas con cambios locales pendientes de subir a Firestore
 
 // Mostrar estado de sync en header
 function showSyncStatus(msg, color) {
@@ -543,6 +535,37 @@ async function loadLocalCatalog() {
   return legacy;
 }
 
+// dirtyIds se guarda también en IndexedDB: si se recarga la app antes de que
+// una planta llegue a subirse a la nube, no se debe olvidar que sigue pendiente
+async function loadDirtyIds() {
+  try {
+    var d = await idbGet('jpf_dirty');
+    if(d && typeof d === 'object') dirtyIds = d;
+  } catch(e) {}
+}
+function persistDirtyIds() {
+  idbSet('jpf_dirty', dirtyIds).catch(function(){});
+}
+function markDirty(id) {
+  dirtyIds[id] = true;
+  persistDirtyIds();
+}
+
+// Descarga una imagen ya subida (URL de Firebase Storage) y la convierte a
+// base64 para poder incrustarla en el PDF (jsPDF no acepta URLs directamente)
+async function urlToDataURL(url) {
+  try {
+    var resp = await fetch(url);
+    var blob = await resp.blob();
+    return await new Promise(function(resolve, reject) {
+      var reader = new FileReader();
+      reader.onload = function() { resolve(reader.result); };
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch(e) { return null; }
+}
+
 function readFileAsDataURL(file) {
   return new Promise(function(resolve, reject) {
     var reader = new FileReader();
@@ -574,6 +597,35 @@ function compressImg(dataUrl, maxDim, quality) {
   });
 }
 
+// Sube una imagen a Firebase Storage si todavía es un data URL local (foto
+// recién tomada); si ya es una URL http(s) es que ya se subió antes, no se
+// vuelve a subir. Si falla la subida (sin conexión), se devuelve el data URL
+// tal cual para seguir viéndola en este dispositivo y reintentar en el próximo save().
+async function uploadIfNeeded(dataUrl, path) {
+  if(!dataUrl || typeof dataUrl !== 'string') return null;
+  if(dataUrl.indexOf('http') === 0) return dataUrl;
+  if(dataUrl === '🖼️') return null;
+  if(!fbStorage) return dataUrl;
+  try {
+    var ref = fbStorage.ref().child(path);
+    await ref.putString(dataUrl, 'data_url');
+    return await ref.getDownloadURL();
+  } catch(e) {
+    return dataUrl;
+  }
+}
+
+// Borra todas las fotos de una planta en Storage (al eliminarla del catálogo)
+async function deleteStorageFolder(path) {
+  if(!fbStorage) return;
+  try {
+    var ref = fbStorage.ref(path);
+    var list = await ref.listAll();
+    await Promise.all(list.items.map(function(item){ return item.delete().catch(function(){}); }));
+    await Promise.all(list.prefixes.map(function(prefix){ return deleteStorageFolder(prefix.fullPath); }));
+  } catch(e) {}
+}
+
 async function save() {
   try {
     await saveLocalCatalog(catalog);
@@ -587,98 +639,93 @@ async function save() {
   }
   updateHeader();
 
+  if(!db) { showSyncStatus('📱 Solo en este dispositivo (sin nube)', '#e67e22'); return; }
+
+  var toSync = Object.keys(dirtyIds).map(Number).filter(function(id){ return catalog.some(function(p){ return p.id === id; }); });
+  if(!toSync.length) { showSyncStatus('🌐 Online · ' + catalog.length + ' plantas', '#2E7D32'); return; }
+
   showSyncStatus('💾 Guardando...', '#e67e22');
   try {
-    // Comprimir fotos (principal, galería y observaciones) para que quepan en JSONBin
-    // y se sincronicen — con calidad suficiente para previsualizarse — en cualquier dispositivo
-    var catalogLight = await Promise.all(catalog.map(async function(p) {
-      var thumb = p.imagen ? await compressImg(p.imagen, 360, 0.62) : null;
-      var galeria = await Promise.all((p.galeria || []).map(function(g){ return compressImg(g, 260, 0.55); }));
-      var observaciones = await Promise.all((p.observaciones || []).map(async function(o) {
-        var oThumb = o.img ? await compressImg(o.img, 220, 0.55) : null;
-        return Object.assign({}, o, { img: oThumb });
-      }));
-      return Object.assign({}, p, { imagen: thumb, imagenFull: null, galeria: galeria, observaciones: observaciones });
+    await Promise.all(toSync.map(async function(id) {
+      var p = catalog.find(function(x){ return x.id === id; });
+      if(!p) return;
+      var pid = String(id);
+      // Cada foto se sube a Storage (no se guarda como texto embebido), así que
+      // el tamaño del catálogo en Firestore ya no tiene un límite práctico
+      p.imagen = await uploadIfNeeded(p.imagen, 'plants/' + pid + '/main.jpg');
+      if(p.galeria && p.galeria.length) {
+        p.galeria = await Promise.all(p.galeria.map(function(g, idx){ return uploadIfNeeded(g, 'plants/' + pid + '/gallery/' + idx + '.jpg'); }));
+      }
+      if(p.observaciones && p.observaciones.length) {
+        p.observaciones = await Promise.all(p.observaciones.map(async function(o, idx) {
+          var oUrl = await uploadIfNeeded(o.img, 'plants/' + pid + '/obs/' + idx + '.jpg');
+          return Object.assign({}, o, { img: oUrl });
+        }));
+      }
+      await db.collection('plants').doc(pid).set(p);
+      delete dirtyIds[id];
     }));
+    persistDirtyIds();
 
-    var url = 'https://api.jsonbin.io/v3/b/6a41349bf5f4af5e293d72ab';
-    var body = JSON.stringify({ plants: catalogLight, updated: new Date().toISOString() });
-    var resp = await fetch(url, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Master-Key': JSONBIN_KEY,
-        'X-Bin-Name': 'jardin-piedra-de-fuego',
-        'X-Bin-Private': 'false'
-      },
-      body: body
-    });
-    if(!resp.ok) {
-      var errTxt = await resp.text().catch(function(){ return ''; });
-      var err = new Error('HTTP ' + resp.status + ' ' + errTxt);
-      err.status = resp.status;
-      throw err;
-    }
-    var data = await resp.json();
-    if(!binId && data.metadata && data.metadata.id) {
-      setBinId(data.metadata.id);
-    }
+    await saveLocalCatalog(catalog); // vuelve a guardar en local ya con las URLs resueltas (ocupa mucho menos)
     showSyncStatus('✅ Sincronizado', '#2E7D32');
     setTimeout(function(){ showSyncStatus('🌐 Online', '#2E7D32'); }, 2000);
   } catch(err) {
-    var tooBig = err && (err.status === 413 || /too large|payload/i.test(err.message||''));
-    showSyncStatus(tooBig ? '⚠️ Catálogo muy grande para la nube — guardado solo en este dispositivo' : '⚠️ Sin conexión', '#e67e22');
+    showSyncStatus('⚠️ Sin conexión — guardado solo en este dispositivo', '#e67e22');
   }
 }
 
-// BIN ID COMPARTIDO FIJO - mismo para todos los dispositivos
-// Se establece la primera vez que alguien guarda y se comparte via el propio bin
-var SHARED_BIN_LOOKUP = 'https://api.jsonbin.io/v3/b/SHARED_ID/latest';
-
 async function loadFromCloud() {
   showSyncStatus('🔄 Cargando...', '#e67e22');
+  await loadDirtyIds();
   var local = await loadLocalCatalog();
-  var FIXED_BIN = '6a41349bf5f4af5e293d72ab';
+
+  if(!db) {
+    catalog = local;
+    showSyncStatus('📱 Solo en este dispositivo (sin nube) · ' + catalog.length + ' plantas', '#e67e22');
+    updateHeader();
+    return;
+  }
 
   try {
-    var resp = await fetch('https://api.jsonbin.io/v3/b/' + FIXED_BIN + '/latest', {
-      headers: { 'X-Master-Key': JSONBIN_KEY }
+    var snap = await db.collection('plants').get();
+    var cloud = snap.docs.map(function(d){ return d.data(); });
+
+    var cloudIdSet = {};
+    cloud.forEach(function(p){ cloudIdSet[p.id] = true; });
+    var localById = {};
+    local.forEach(function(l){ localById[l.id] = l; });
+
+    // Las plantas con cambios locales aún no subidos mandan sobre lo que haya en la nube
+    var pendingIds = Object.keys(dirtyIds).map(Number);
+    var merged = cloud.slice();
+    pendingIds.forEach(function(id) {
+      var lp = localById[id];
+      if(!lp) return;
+      var idx = merged.findIndex(function(m){ return m.id === id; });
+      if(idx >= 0) merged[idx] = lp; else merged.push(lp);
     });
-    if(!resp.ok) throw new Error('HTTP ' + resp.status);
-    var data = await resp.json();
 
-    if(data.record && data.record.plants) {
-      var cloud = data.record.plants;
-      cloud.forEach(function(p) {
-        var localP = local.find(function(l){ return l.id === p.id; });
-        if(p.imagen === '🖼️') {
-          p.imagen = (localP && localP.imagen) ? localP.imagen : null;
-        }
-        (p.galeria || []).forEach(function(g, idx) {
-          if(g === '🖼️') p.galeria[idx] = (localP && localP.galeria && localP.galeria[idx]) || null;
-        });
-        (p.observaciones || []).forEach(function(o, idx) {
-          if(o.img === '🖼️') o.img = (localP && localP.observaciones && localP.observaciones[idx] && localP.observaciones[idx].img) || null;
-        });
-      });
-
-      // Nunca perder plantas que solo existan en este dispositivo (p.ej. si una
-      // sincronización previa falló por exceder el tamaño máximo de la nube)
-      var cloudIds = {};
-      cloud.forEach(function(p){ cloudIds[p.id] = true; });
-      var missingLocal = local.filter(function(l){ return !cloudIds[l.id]; });
-      catalog = missingLocal.concat(cloud);
-      await saveLocalCatalog(catalog);
-
-      if(missingLocal.length) {
-        showSyncStatus('⚠️ ' + missingLocal.length + ' planta(s) solo en este dispositivo — reintentando subir', '#e67e22');
-        save(); // reintenta subir el catálogo completo (incluidas las que faltaban) sin bloquear la UI
-      } else {
-        showSyncStatus('🌐 Online · ' + catalog.length + ' plantas', '#2E7D32');
+    // Nunca perder una planta que solo exista en este dispositivo, aunque por
+    // algún motivo no estuviera marcada como pendiente
+    local.forEach(function(lp) {
+      if(!cloudIdSet[lp.id] && pendingIds.indexOf(lp.id) === -1) {
+        merged.push(lp);
+        markDirty(lp.id);
       }
-      updateHeader();
-      return;
+    });
+
+    catalog = merged;
+    await saveLocalCatalog(catalog);
+    updateHeader();
+
+    if(Object.keys(dirtyIds).length) {
+      showSyncStatus('⚠️ Sincronizando cambios pendientes…', '#e67e22');
+      save();
+    } else {
+      showSyncStatus('🌐 Online · ' + catalog.length + ' plantas', '#2E7D32');
     }
+    return;
   } catch(err) {
     console.log('Sync error:', err);
   }
@@ -690,8 +737,6 @@ async function loadFromCloud() {
 
 // Recargar desde nube (botón manual)
 async function syncNow() {
-  localStorage.removeItem('jpf_bin_id');
-  BIN_ID = null;
   await loadFromCloud();
   if(document.getElementById('panel-catalog').classList.contains('active')) {
     renderCatalog();
@@ -1500,6 +1545,7 @@ function saveManual() {
     var existing = catalog.find(function(x){ return x.id === editingId; });
     if(existing) {
       Object.assign(existing, fields);
+      markDirty(editingId);
       save();
       toast('✅ "' + nombre + '" actualizada');
     }
@@ -1513,6 +1559,7 @@ function saveManual() {
       fecha_registro: new Date().toISOString()
     }, fields);
     catalog.unshift(plant);
+    markDirty(plant.id);
     save();
     toast('✅ "' + nombre + '" guardada');
   }
@@ -1601,6 +1648,7 @@ function saveFoto() {
     fecha_registro: new Date().toISOString()
   };
   catalog.unshift(plant);
+  markDirty(plant.id);
   save();
   toast('✅ Foto guardada — edítala desde el catálogo para completar datos');
   // Reset foto mode
@@ -1784,6 +1832,7 @@ function addObs(id) {
   if(!p.observaciones) p.observaciones = [];
   p.observaciones.unshift({ texto:txt, fecha:new Date().toISOString(), img:obsImg||null });
   obsImg = null;
+  markDirty(id);
   save();
   toast('📝 Observación guardada');
   openPlant(id);
@@ -1802,18 +1851,23 @@ async function addGalleryPhoto(id, inputEl) {
   if(!p) return;
   if(!p.galeria) p.galeria = [];
   p.galeria.push(compressed);
+  markDirty(id);
   save();
   toast('🖼️ Foto añadida a la galería');
   openPlant(id);
 }
 
-function removeGalleryPhoto(id, idx) {
+async function removeGalleryPhoto(id, idx) {
   var p = catalog.find(function(x){ return x.id===id; });
   if(!p || !p.galeria) return;
-  p.galeria.splice(idx, 1);
+  var removed = p.galeria.splice(idx, 1)[0];
+  markDirty(id);
   save();
   toast('🗑️ Foto eliminada');
   openPlant(id);
+  if(removed && typeof removed === 'string' && removed.indexOf('http') === 0) {
+    try { await fbStorage.refFromURL(removed).delete(); } catch(e) {}
+  }
 }
 
 // ============================================================
@@ -1842,12 +1896,18 @@ function showQR(id) {
 // ============================================================
 // DELETE
 // ============================================================
-function delPlant(id) {
+async function delPlant(id) {
   var p = catalog.find(function(x){ return x.id===id; });
-  if(!confirm('¿Eliminar "'+p.nombre_comun+'"?')) return;
+  if(!p || !confirm('¿Eliminar "'+p.nombre_comun+'"?')) return;
   catalog = catalog.filter(function(x){ return x.id!==id; });
-  save(); closeModal(); renderCatalog();
+  delete dirtyIds[id];
+  persistDirtyIds();
+  await saveLocalCatalog(catalog);
+  updateHeader();
+  closeModal(); renderCatalog();
   toast('🗑️ Eliminada');
+  try { await db.collection('plants').doc(String(id)).delete(); } catch(e) {}
+  deleteStorageFolder('plants/' + id); // sin esperar: limpieza de fotos en segundo plano
 }
 
 // ============================================================
@@ -1891,6 +1951,7 @@ function markWater(id) {
   var p = catalog.find(function(x){ return x.id===id; });
   if(!p) return;
   p.ultimo_riego = new Date().toISOString();
+  markDirty(id);
   save(); renderRiego();
   toast('💧 "'+p.nombre_comun+'" regada');
 }
@@ -1898,9 +1959,18 @@ function markWater(id) {
 // ============================================================
 // EXPORT PDF
 // ============================================================
-function exportPDF() {
+async function exportPDF() {
   if(!catalog.length) { toast('⚠️ Catálogo vacío'); return; }
   toast('📄 Generando PDF…');
+
+  // jsPDF necesita las imágenes como base64: las que ya viven en Firebase
+  // Storage están guardadas como URL, así que las descargamos primero
+  var imgMap = {};
+  await Promise.all(catalog.map(async function(p) {
+    if(!p.imagen) return;
+    imgMap[p.id] = p.imagen.indexOf('http') === 0 ? await urlToDataURL(p.imagen) : p.imagen;
+  }));
+
   var jsPDF = window.jspdf.jsPDF;
   var doc = new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
   var W = 210, M = 18;
@@ -1927,8 +1997,8 @@ function exportPDF() {
     doc.setFont('helvetica','normal'); doc.setTextColor(74,94,75);
     if(p.familia) doc.text(p.familia, W-M, 22, {align:'right'});
     var y = 38;
-    if(p.imagen){ try{ doc.addImage(p.imagen,'JPEG',M,y,46,36,undefined,'FAST'); }catch(e){} }
-    var tx = p.imagen ? M+52 : M;
+    if(imgMap[p.id]){ try{ doc.addImage(imgMap[p.id],'JPEG',M,y,46,36,undefined,'FAST'); }catch(e){} }
+    var tx = imgMap[p.id] ? M+52 : M;
     if(p.descripcion){ doc.setFontSize(7.5); doc.setFont('helvetica','bold'); doc.setTextColor(46,125,50); doc.text('DESCRIPCIÓN',tx,y+4); doc.setFont('helvetica','normal'); doc.setTextColor(74,94,75); doc.setFontSize(8); var dl=doc.splitTextToSize(p.descripcion,W-tx-M); doc.text(dl,tx,y+10); }
     y = Math.max(y+40, y+16);
     var fields=[['Origen',p.origen_geografico],['Hábitat',p.habitat_natural],['Floración',p.floracion],['Toxicidad',p.toxicidad],['Crecimiento',p.velocidad_crecimiento],['Ubicación',p.ubicacion],['Plantado',p.fecha_plantacion],['Código',p.nombre_propio],['Riego',lr(p.frecuencia_riego)],['Salud',hl(p.estado_salud)]].filter(function(f){return f[1];});
@@ -1958,50 +2028,6 @@ function exportExcel() {
   if(obsR.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(obsR), 'Observaciones');
   XLSX.writeFile(wb, 'jpf_catalogo_'+new Date().toISOString().slice(0,10)+'.xlsx');
   toast('📊 Excel descargado');
-}
-
-// =============================================// ============================================================
-// SYNC PANEL
-// ============================================================
-function showSyncPanel() {
-  var panel = document.getElementById('syncPanel');
-  var display = document.getElementById('myBinIdDisplay');
-  if(panel.style.display === 'none') {
-    panel.style.display = 'block';
-    var binId = getBinId();
-    display.textContent = binId || 'Guarda una planta primero para generar tu ID';
-  } else {
-    panel.style.display = 'none';
-  }
-}
-
-function copyBinId() {
-  var binId = getBinId();
-  if(!binId) { toast('⚠️ Guarda una planta primero'); return; }
-  if(navigator.clipboard) {
-    navigator.clipboard.writeText(binId).then(function() {
-      toast('📋 ID copiado al portapapeles');
-    });
-  } else {
-    // Fallback para iOS
-    var el = document.getElementById('myBinIdDisplay');
-    var range = document.createRange();
-    range.selectNode(el);
-    window.getSelection().removeAllRanges();
-    window.getSelection().addRange(range);
-    document.execCommand('copy');
-    window.getSelection().removeAllRanges();
-    toast('📋 ID copiado');
-  }
-}
-
-function applyManualBinId() {
-  var input = document.getElementById('manualBinId').value.trim();
-  if(!input) { toast('⚠️ Pega el ID primero'); return; }
-  setBinId(input);
-  toast('✅ ID aplicado — sincronizando...');
-  document.getElementById('syncPanel').style.display = 'none';
-  syncNow();
 }
 
 // ============================================================
