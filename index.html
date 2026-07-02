@@ -231,6 +231,21 @@ select.finput option{background:white}
 .filelabel{padding:7px 13px;background:var(--surface);border:1.5px solid var(--border);border-radius:var(--rp);font-size:.72rem;font-weight:700;cursor:pointer;color:var(--ink-mid);transition:all .2s var(--ease)}
 .filelabel:hover{border-color:var(--green-light);color:var(--green-800)}
 
+/* GALLERY */
+.ggrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(78px,1fr));gap:9px}
+.gitem{position:relative;border-radius:12px;overflow:hidden;aspect-ratio:1;box-shadow:var(--shadow-xs)}
+.gitem img{width:100%;height:100%;object-fit:cover;display:block;cursor:pointer;transition:transform .3s var(--ease)}
+.gitem:hover img{transform:scale(1.06)}
+.gitem .gdel{position:absolute;top:4px;right:4px;width:20px;height:20px;border-radius:50%;background:rgba(19,36,23,.62);backdrop-filter:blur(3px);color:#fff;border:none;font-size:.6rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s var(--ease)}
+.gitem .gdel:hover{background:var(--red)}
+.gadd{aspect-ratio:1;border-radius:12px;border:1.5px dashed var(--border-mid);background:var(--green-xpale);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;color:var(--green-700);font-size:1.2rem;transition:all .2s var(--ease)}
+.gadd:hover{border-color:var(--green-light);background:var(--green-pale)}
+.gadd span{font-size:.55rem;font-weight:800;color:var(--ink-muted)}
+
+/* EDIT BANNER */
+.editbanner{background:var(--ember-pale);border:1px solid rgba(217,115,36,.25);border-radius:var(--rs);padding:10px 14px;margin-bottom:14px;display:flex;align-items:center;gap:10px;font-size:.8rem;font-weight:700;color:var(--ember-dark)}
+.editbanner button{margin-left:auto;background:none;border:none;color:var(--ember-dark);text-decoration:underline;font-weight:800;font-size:.76rem;cursor:pointer;font-family:'Nunito',sans-serif}
+
 /* QR */
 #qrBox{display:flex;flex-direction:column;align-items:center;gap:17px;padding:36px 22px}
 #qrBox h3{font-family:'Lora',serif;font-size:1.25rem;font-weight:600;color:var(--ink)}
@@ -303,6 +318,7 @@ select.finput option{background:white}
 
   <!-- MANUAL MODE -->
   <div id="panel-manual">
+    <div class="editbanner" id="editBanner" style="display:none">✏️ Editando planta <button onclick="resetManual()">Cancelar</button></div>
     <div class="banner banner-g">✏️ Escribe el nombre y pulsa <strong>✨ Rellenar</strong> para autocompletar datos botánicos</div>
 
     <!-- Foto opcional -->
@@ -370,7 +386,7 @@ select.finput option{background:white}
       </div>
     </div>
 
-    <button class="btn-main" onclick="saveManual()">💾 Guardar planta</button>
+    <button class="btn-main" id="btnSaveManual" onclick="saveManual()">💾 Guardar planta</button>
   </div>
 
   <!-- FOTO MODE -->
@@ -454,6 +470,7 @@ var catalog = [];
 var mImg = null;
 var fImg = null;
 var obsImg = null;
+var editingId = null; // id de la planta en edición, null = alta nueva
 var syncStatus = 'idle'; // idle, syncing, error
 
 function getBinId() {
@@ -471,33 +488,48 @@ function showSyncStatus(msg, color) {
 }
 
 // Guardar en JSONBin (compartido) + localStorage (backup)
+// Comprime una imagen (data URL) preservando proporción, esperando a que cargue antes de dibujar
+function compressImg(dataUrl, maxDim, quality) {
+  return new Promise(function(resolve) {
+    if(!dataUrl) { resolve(null); return; }
+    var img = new Image();
+    img.onload = function() {
+      try {
+        var w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+        var scale = Math.min(1, maxDim / Math.max(w, h));
+        var cw = Math.max(1, Math.round(w * scale)), ch = Math.max(1, Math.round(h * scale));
+        var canvas = document.createElement('canvas');
+        canvas.width = cw; canvas.height = ch;
+        canvas.getContext('2d').drawImage(img, 0, 0, cw, ch);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      } catch(e) { resolve('🖼️'); }
+    };
+    img.onerror = function() { resolve('🖼️'); };
+    img.src = dataUrl;
+  });
+}
+
 async function save() {
   localStorage.setItem('jpf_local', JSON.stringify(catalog));
   updateHeader();
 
-  // Comprimir imágenes a miniatura pequeña para JSONBin (~5KB cada una)
-  var catalogLight = catalog.map(function(p) {
-    if(!p.imagen) return Object.assign({}, p, { imagen: null });
-    try {
-      var canvas = document.createElement('canvas');
-      var ctx = canvas.getContext('2d');
-      var img = new Image();
-      img.src = p.imagen;
-      canvas.width = 80; canvas.height = 80;
-      ctx.drawImage(img, 0, 0, 80, 80);
-      var thumb = canvas.toDataURL('image/jpeg', 0.5);
-      return Object.assign({}, p, { imagen: thumb, imagenFull: null });
-    } catch(e) {
-      return Object.assign({}, p, { imagen: '🖼️' });
-    }
-  });
-
   showSyncStatus('💾 Guardando...', '#e67e22');
   try {
+    // Comprimir fotos (principal, galería y observaciones) para que quepan en JSONBin
+    // y se sincronicen — con calidad suficiente para previsualizarse — en cualquier dispositivo
+    var catalogLight = await Promise.all(catalog.map(async function(p) {
+      var thumb = p.imagen ? await compressImg(p.imagen, 360, 0.62) : null;
+      var galeria = await Promise.all((p.galeria || []).map(function(g){ return compressImg(g, 260, 0.55); }));
+      var observaciones = await Promise.all((p.observaciones || []).map(async function(o) {
+        var oThumb = o.img ? await compressImg(o.img, 220, 0.55) : null;
+        return Object.assign({}, o, { img: oThumb });
+      }));
+      return Object.assign({}, p, { imagen: thumb, imagenFull: null, galeria: galeria, observaciones: observaciones });
+    }));
+
     var url = 'https://api.jsonbin.io/v3/b/6a41349bf5f4af5e293d72ab';
-    var method = 'PUT';
     var resp = await fetch(url, {
-      method: method,
+      method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
         'X-Master-Key': JSONBIN_KEY,
@@ -535,10 +567,16 @@ async function loadFromCloud() {
     if(data.record && data.record.plants) {
       var cloud = data.record.plants;
       cloud.forEach(function(p) {
+        var localP = local.find(function(l){ return l.id === p.id; });
         if(p.imagen === '🖼️') {
-          var localP = local.find(function(l){ return l.id === p.id; });
           p.imagen = (localP && localP.imagen) ? localP.imagen : null;
         }
+        (p.galeria || []).forEach(function(g, idx) {
+          if(g === '🖼️') p.galeria[idx] = (localP && localP.galeria && localP.galeria[idx]) || null;
+        });
+        (p.observaciones || []).forEach(function(o, idx) {
+          if(o.img === '🖼️') o.img = (localP && localP.observaciones && localP.observaciones[idx] && localP.observaciones[idx].img) || null;
+        });
       });
       catalog = cloud;
       localStorage.setItem('jpf_local', JSON.stringify(catalog));
@@ -1305,8 +1343,7 @@ function saveManual() {
   var nombre = g('mNombre');
   if(!nombre) { toast('⚠️ El nombre es obligatorio'); return; }
 
-  var plant = {
-    id: Date.now(),
+  var fields = {
     nombre_comun: nombre,
     nombre_cientifico: g('mCientifico'),
     familia: g('mFamilia'),
@@ -1328,21 +1365,72 @@ function saveManual() {
     procedencia: g('mProcedencia'),
     precio: g('mPrecio'),
     maceta: g('mMaceta'),
-    notas: g('mNotas'),
-    confianza: 'Manual',
-    ultimo_riego: null,
-    observaciones: [],
-    fecha_registro: new Date().toISOString()
+    notas: g('mNotas')
   };
 
-  catalog.unshift(plant);
-  save();
-  toast('✅ "' + nombre + '" guardada');
+  if(editingId) {
+    var existing = catalog.find(function(x){ return x.id === editingId; });
+    if(existing) {
+      Object.assign(existing, fields);
+      save();
+      toast('✅ "' + nombre + '" actualizada');
+    }
+  } else {
+    var plant = Object.assign({
+      id: Date.now(),
+      confianza: 'Manual',
+      ultimo_riego: null,
+      observaciones: [],
+      galeria: [],
+      fecha_registro: new Date().toISOString()
+    }, fields);
+    catalog.unshift(plant);
+    save();
+    toast('✅ "' + nombre + '" guardada');
+  }
   resetManual();
+}
+
+// Carga los datos de una planta existente en el formulario Manual para editarla
+function editPlant(id) {
+  var p = catalog.find(function(x){ return x.id === id; });
+  if(!p) return;
+  editingId = id;
+  closeModal();
+  tab('identify');
+  setMode('manual');
+
+  var s = function(elId, val) { var el = document.getElementById(elId); if(el) el.value = val || ''; };
+  s('mNombre', p.nombre_comun); s('mCientifico', p.nombre_cientifico); s('mFamilia', p.familia);
+  s('mDesc', p.descripcion); s('mOrigen', p.origen_geografico); s('mHabitat', p.habitat_natural);
+  s('mFloracion', p.floracion); s('mToxicidad', p.toxicidad); s('mCrecimiento', p.velocidad_crecimiento);
+  s('mCuriosidades', p.curiosidades); s('mUsos', (p.usos||[]).join(', '));
+  var c = p.cuidados || {};
+  s('mRiego', c.riego); s('mLuz', c.luz); s('mTemp', c.temperatura); s('mHumedad', c.humedad);
+  s('mSuelo', c.suelo); s('mAbono', c.abono); s('mPoda', c.poda);
+  s('mUbicacion', p.ubicacion); s('mCodigo', p.nombre_propio); s('mFecha', p.fecha_plantacion);
+  s('mFrecRiego', p.frecuencia_riego); s('mSalud', p.estado_salud);
+  s('mProcedencia', p.procedencia); s('mPrecio', p.precio); s('mMaceta', p.maceta); s('mNotas', p.notas);
+
+  mImg = p.imagen || null;
+  var zone = document.getElementById('mUploadZone');
+  if(mImg) {
+    zone.innerHTML = '<img src="'+mImg+'" alt="planta" style="width:100%;max-height:240px;object-fit:cover;border-radius:14px;display:block">';
+    zone.classList.add('has-img');
+  } else {
+    zone.innerHTML = '<div class="uicon">📸</div><p><strong>Foto de la planta</strong><br>Opcional — toca para añadir</p>';
+    zone.classList.remove('has-img');
+  }
+  zone.onclick = function(){ document.getElementById('mFileInput').click(); };
+
+  var btn = document.getElementById('btnSaveManual'); if(btn) btn.textContent = '💾 Actualizar planta';
+  var banner = document.getElementById('editBanner'); if(banner) banner.style.display = 'flex';
+  window.scrollTo({top:0, behavior:'smooth'});
 }
 
 function resetManual() {
   mImg = null;
+  editingId = null;
   var zone = document.getElementById('mUploadZone');
   zone.innerHTML = '<div class="uicon">📸</div><p><strong>Foto de la planta</strong><br>Opcional — toca para añadir</p>';
   zone.classList.remove('has-img');
@@ -1355,6 +1443,8 @@ function resetManual() {
   });
   ['mCrecimiento','mFrecRiego','mSalud'].forEach(function(id){ var el = document.getElementById(id); if(el) el.value = ''; });
   var s = document.getElementById('fillStatus'); if(s) s.style.display = 'none';
+  var btn = document.getElementById('btnSaveManual'); if(btn) btn.textContent = '💾 Guardar planta';
+  var banner = document.getElementById('editBanner'); if(banner) banner.style.display = 'none';
 }
 
 // ============================================================
@@ -1379,6 +1469,7 @@ function saveFoto() {
     confianza: 'Foto',
     ultimo_riego: null,
     observaciones: [],
+    galeria: [],
     fecha_registro: new Date().toISOString()
   };
   catalog.unshift(plant);
@@ -1457,6 +1548,13 @@ function openPlant(id) {
     return '<div class="obsitem">' + (o.img?'<img class="obsthumb" src="'+o.img+'" alt="">':'') +
       '<div><div class="obsdate">'+fd(o.fecha)+'</div><div class="obstxt">'+o.texto+'</div></div></div>';
   }).join('');
+  var galItems = (p.galeria||[]).map(function(g, idx){
+    return '<div class="gitem"><img src="'+g+'" alt="" onclick="window.open(this.src,\'_blank\')">' +
+      '<button class="gdel" onclick="event.stopPropagation();removeGalleryPhoto('+p.id+','+idx+')">✕</button></div>';
+  }).join('');
+  var galHtml = '<div class="ggrid">' + galItems +
+    '<label class="gadd">➕<span>Añadir</span><input type="file" accept="image/*" style="display:none" onchange="addGalleryPhoto('+p.id+',this)"></label>' +
+  '</div>';
 
   var heroHtml = p.imagen ?
     '<div class="mherowrap"><img class="mhero" src="'+p.imagen+'" alt="">' +
@@ -1505,6 +1603,7 @@ function openPlant(id) {
         (p.curiosidades?'<div class="isec full"><h3>Curiosidades</h3><p>'+p.curiosidades+'</p></div>':'') +
         (usos?'<div class="isec full"><h3>Usos</h3><div class="ptags">'+usos+'</div></div>':'') +
         (p.notas?'<div class="isec full"><h3>Notas</h3><p>'+p.notas+'</p></div>':'') +
+        '<div class="isec full"><h3>Galería de fotos</h3>'+galHtml+'</div>' +
       '</div>' +
     '</div>' +
     '<div class="mpanel" id="mp-cuidados">' +
@@ -1526,6 +1625,7 @@ function openPlant(id) {
       '</div>' +
     '</div>' +
     '<div class="mactions">' +
+      '<button class="btn btn-g" onclick="editPlant('+p.id+')">✏️ Editar</button>' +
       '<button class="btn btn-o" onclick="showQR('+p.id+')">📱 QR</button>' +
       '<button class="btn btn-d" onclick="delPlant('+p.id+')">🗑️ Eliminar</button>' +
     '</div>';
@@ -1557,6 +1657,34 @@ function addObs(id) {
   obsImg = null;
   save();
   toast('📝 Observación guardada');
+  openPlant(id);
+}
+
+// ============================================================
+// GALERÍA DE FOTOS EXTRA
+// ============================================================
+function addGalleryPhoto(id, inputEl) {
+  var file = inputEl.files[0];
+  if(!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var p = catalog.find(function(x){ return x.id===id; });
+    if(!p) return;
+    if(!p.galeria) p.galeria = [];
+    p.galeria.push(e.target.result);
+    save();
+    toast('🖼️ Foto añadida a la galería');
+    openPlant(id);
+  };
+  reader.readAsDataURL(file);
+}
+
+function removeGalleryPhoto(id, idx) {
+  var p = catalog.find(function(x){ return x.id===id; });
+  if(!p || !p.galeria) return;
+  p.galeria.splice(idx, 1);
+  save();
+  toast('🗑️ Foto eliminada');
   openPlant(id);
 }
 
