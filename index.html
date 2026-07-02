@@ -487,6 +487,71 @@ function showSyncStatus(msg, color) {
   if(el) { el.textContent = msg; el.style.color = color || '#8A9E8B'; }
 }
 
+// Almacén local con mucha más capacidad que localStorage (que suele limitarse a
+// 5-10MB en total) para poder guardar cientos de plantas con fotos sin quedarse
+// sin espacio. IndexedDB soporta cientos de MB en la mayoría de navegadores.
+var IDB_NAME = 'jpf_db', IDB_STORE = 'kv';
+function idbOpen() {
+  return new Promise(function(resolve, reject) {
+    if(!window.indexedDB) { reject(new Error('IndexedDB no soportado')); return; }
+    var req = indexedDB.open(IDB_NAME, 1);
+    req.onupgradeneeded = function() { req.result.createObjectStore(IDB_STORE); };
+    req.onsuccess = function() { resolve(req.result); };
+    req.onerror = function() { reject(req.error); };
+  });
+}
+async function idbGet(key) {
+  var db = await idbOpen();
+  return new Promise(function(resolve, reject) {
+    var req = db.transaction(IDB_STORE, 'readonly').objectStore(IDB_STORE).get(key);
+    req.onsuccess = function() { resolve(req.result); };
+    req.onerror = function() { reject(req.error); };
+  });
+}
+async function idbSet(key, val) {
+  var db = await idbOpen();
+  return new Promise(function(resolve, reject) {
+    var tx = db.transaction(IDB_STORE, 'readwrite');
+    tx.objectStore(IDB_STORE).put(val, key);
+    tx.oncomplete = function() { resolve(); };
+    tx.onerror = function() { reject(tx.error); };
+  });
+}
+
+// Guarda el catálogo en IndexedDB; si no está disponible, cae a localStorage
+// (el error de cuota, si lo hay, se propaga para que quien llama avise al usuario)
+async function saveLocalCatalog(cat) {
+  try {
+    await idbSet('jpf_local', cat);
+    return;
+  } catch(e) { /* IndexedDB no disponible: fallback a localStorage */ }
+  localStorage.setItem('jpf_local', JSON.stringify(cat));
+}
+
+// Lee el catálogo local, migrando automáticamente desde el localStorage de
+// versiones anteriores de la app la primera vez que se ejecuta esta versión
+async function loadLocalCatalog() {
+  try {
+    var fromIdb = await idbGet('jpf_local');
+    if(fromIdb) return fromIdb;
+  } catch(e) {}
+  var legacy = [];
+  try { legacy = JSON.parse(localStorage.getItem('jpf_local') || '[]'); } catch(e) {}
+  if(legacy.length) {
+    try { await idbSet('jpf_local', legacy); localStorage.removeItem('jpf_local'); } catch(e) {}
+  }
+  return legacy;
+}
+
+function readFileAsDataURL(file) {
+  return new Promise(function(resolve, reject) {
+    var reader = new FileReader();
+    reader.onload = function(e) { resolve(e.target.result); };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 // Guardar en JSONBin (compartido) + localStorage (backup)
 // Comprime una imagen (data URL) preservando proporción, esperando a que cargue antes de dibujar
 function compressImg(dataUrl, maxDim, quality) {
@@ -510,7 +575,16 @@ function compressImg(dataUrl, maxDim, quality) {
 }
 
 async function save() {
-  localStorage.setItem('jpf_local', JSON.stringify(catalog));
+  try {
+    await saveLocalCatalog(catalog);
+  } catch(quotaErr) {
+    // Si el almacenamiento local se llena, avisamos claramente en vez de perder
+    // la planta en silencio (con fotos comprimidas esto no debería pasar salvo catálogos enormes)
+    showSyncStatus('⚠️ Almacenamiento del dispositivo lleno — no se pudo guardar', '#c0392b');
+    toast('⚠️ Memoria del dispositivo llena. Borra fotos de galería/observaciones antiguas para liberar espacio.');
+    updateHeader();
+    return;
+  }
   updateHeader();
 
   showSyncStatus('💾 Guardando...', '#e67e22');
@@ -528,6 +602,7 @@ async function save() {
     }));
 
     var url = 'https://api.jsonbin.io/v3/b/6a41349bf5f4af5e293d72ab';
+    var body = JSON.stringify({ plants: catalogLight, updated: new Date().toISOString() });
     var resp = await fetch(url, {
       method: 'PUT',
       headers: {
@@ -536,8 +611,14 @@ async function save() {
         'X-Bin-Name': 'jardin-piedra-de-fuego',
         'X-Bin-Private': 'false'
       },
-      body: JSON.stringify({ plants: catalogLight, updated: new Date().toISOString() })
+      body: body
     });
+    if(!resp.ok) {
+      var errTxt = await resp.text().catch(function(){ return ''; });
+      var err = new Error('HTTP ' + resp.status + ' ' + errTxt);
+      err.status = resp.status;
+      throw err;
+    }
     var data = await resp.json();
     if(!binId && data.metadata && data.metadata.id) {
       setBinId(data.metadata.id);
@@ -545,7 +626,8 @@ async function save() {
     showSyncStatus('✅ Sincronizado', '#2E7D32');
     setTimeout(function(){ showSyncStatus('🌐 Online', '#2E7D32'); }, 2000);
   } catch(err) {
-    showSyncStatus('⚠️ Sin conexión', '#e67e22');
+    var tooBig = err && (err.status === 413 || /too large|payload/i.test(err.message||''));
+    showSyncStatus(tooBig ? '⚠️ Catálogo muy grande para la nube — guardado solo en este dispositivo' : '⚠️ Sin conexión', '#e67e22');
   }
 }
 
@@ -555,13 +637,14 @@ var SHARED_BIN_LOOKUP = 'https://api.jsonbin.io/v3/b/SHARED_ID/latest';
 
 async function loadFromCloud() {
   showSyncStatus('🔄 Cargando...', '#e67e22');
-  var local = JSON.parse(localStorage.getItem('jpf_local') || '[]');
+  var local = await loadLocalCatalog();
   var FIXED_BIN = '6a41349bf5f4af5e293d72ab';
 
   try {
     var resp = await fetch('https://api.jsonbin.io/v3/b/' + FIXED_BIN + '/latest', {
       headers: { 'X-Master-Key': JSONBIN_KEY }
     });
+    if(!resp.ok) throw new Error('HTTP ' + resp.status);
     var data = await resp.json();
 
     if(data.record && data.record.plants) {
@@ -578,9 +661,21 @@ async function loadFromCloud() {
           if(o.img === '🖼️') o.img = (localP && localP.observaciones && localP.observaciones[idx] && localP.observaciones[idx].img) || null;
         });
       });
-      catalog = cloud;
-      localStorage.setItem('jpf_local', JSON.stringify(catalog));
-      showSyncStatus('🌐 Online · ' + catalog.length + ' plantas', '#2E7D32');
+
+      // Nunca perder plantas que solo existan en este dispositivo (p.ej. si una
+      // sincronización previa falló por exceder el tamaño máximo de la nube)
+      var cloudIds = {};
+      cloud.forEach(function(p){ cloudIds[p.id] = true; });
+      var missingLocal = local.filter(function(l){ return !cloudIds[l.id]; });
+      catalog = missingLocal.concat(cloud);
+      await saveLocalCatalog(catalog);
+
+      if(missingLocal.length) {
+        showSyncStatus('⚠️ ' + missingLocal.length + ' planta(s) solo en este dispositivo — reintentando subir', '#e67e22');
+        save(); // reintenta subir el catálogo completo (incluidas las que faltaban) sin bloquear la UI
+      } else {
+        showSyncStatus('🌐 Online · ' + catalog.length + ' plantas', '#2E7D32');
+      }
       updateHeader();
       return;
     }
@@ -589,7 +684,7 @@ async function loadFromCloud() {
   }
 
   catalog = local;
-  showSyncStatus('📱 Sin conexión', '#e67e22');
+  showSyncStatus('📱 Sin conexión · ' + catalog.length + ' plantas', '#e67e22');
   updateHeader();
 }
 
@@ -637,35 +732,34 @@ function setMode(mode) {
 // ============================================================
 // MANUAL UPLOAD
 // ============================================================
-document.getElementById('mFileInput').onchange = function() {
+document.getElementById('mFileInput').onchange = async function() {
   var file = this.files[0];
   if(!file) return;
-  var reader = new FileReader();
-  reader.onload = function(e) {
-    mImg = e.target.result;
-    var zone = document.getElementById('mUploadZone');
-    zone.innerHTML = '<img src="' + mImg + '" alt="planta" style="width:100%;max-height:240px;object-fit:cover;border-radius:14px;display:block">';
-    zone.classList.add('has-img');
-    zone.onclick = null;
-  };
-  reader.readAsDataURL(file);
+  var zone = document.getElementById('mUploadZone');
+  zone.innerHTML = '<div class="uicon">⏳</div><p>Procesando foto…</p>';
+  var raw = await readFileAsDataURL(file);
+  // Comprimimos SIEMPRE antes de guardar en el dispositivo: una foto de móvil
+  // sin comprimir (varios MB) agota el almacenamiento local en pocas decenas
+  // de plantas y hace que las últimas añadidas se "pierdan" al recargar
+  mImg = await compressImg(raw, 1280, 0.75);
+  zone.innerHTML = '<img src="' + mImg + '" alt="planta" style="width:100%;max-height:240px;object-fit:cover;border-radius:14px;display:block">';
+  zone.classList.add('has-img');
+  zone.onclick = null;
 };
 
 // ============================================================
 // FOTO UPLOAD
 // ============================================================
-document.getElementById('fFileInput').onchange = function() {
+document.getElementById('fFileInput').onchange = async function() {
   var file = this.files[0];
   if(!file) return;
-  var reader = new FileReader();
-  reader.onload = function(e) {
-    fImg = e.target.result;
-    var zone = document.getElementById('fUploadZone');
-    zone.innerHTML = '<img src="' + fImg + '" alt="planta" style="width:100%;height:100%;object-fit:cover;display:block">';
-    zone.classList.add('has-img');
-    zone.onclick = null;
-  };
-  reader.readAsDataURL(file);
+  var zone = document.getElementById('fUploadZone');
+  zone.innerHTML = '<div class="viewfinder-ring">⏳</div><p>Procesando foto…</p>';
+  var raw = await readFileAsDataURL(file);
+  fImg = await compressImg(raw, 1280, 0.75);
+  zone.innerHTML = '<img src="' + fImg + '" alt="planta" style="width:100%;height:100%;object-fit:cover;display:block">';
+  zone.classList.add('has-img');
+  zone.onclick = null;
 };
 
 // ============================================================
@@ -1674,11 +1768,12 @@ function mtab(btn, panel) {
   document.getElementById('mp-' + panel).classList.add('active');
 }
 
-function loadObsImg(input) {
+async function loadObsImg(input) {
   var file = input.files[0]; if(!file) return;
-  var r = new FileReader();
-  r.onload = function(e) { obsImg = e.target.result; document.getElementById('obsImgName').textContent = file.name; };
-  r.readAsDataURL(file);
+  document.getElementById('obsImgName').textContent = 'Procesando…';
+  var raw = await readFileAsDataURL(file);
+  obsImg = await compressImg(raw, 900, 0.7);
+  document.getElementById('obsImgName').textContent = file.name;
 }
 
 function addObs(id) {
@@ -1697,20 +1792,19 @@ function addObs(id) {
 // ============================================================
 // GALERÍA DE FOTOS EXTRA
 // ============================================================
-function addGalleryPhoto(id, inputEl) {
+async function addGalleryPhoto(id, inputEl) {
   var file = inputEl.files[0];
   if(!file) return;
-  var reader = new FileReader();
-  reader.onload = function(e) {
-    var p = catalog.find(function(x){ return x.id===id; });
-    if(!p) return;
-    if(!p.galeria) p.galeria = [];
-    p.galeria.push(e.target.result);
-    save();
-    toast('🖼️ Foto añadida a la galería');
-    openPlant(id);
-  };
-  reader.readAsDataURL(file);
+  toast('⏳ Procesando foto…');
+  var raw = await readFileAsDataURL(file);
+  var compressed = await compressImg(raw, 1000, 0.72);
+  var p = catalog.find(function(x){ return x.id===id; });
+  if(!p) return;
+  if(!p.galeria) p.galeria = [];
+  p.galeria.push(compressed);
+  save();
+  toast('🖼️ Foto añadida a la galería');
+  openPlant(id);
 }
 
 function removeGalleryPhoto(id, idx) {
