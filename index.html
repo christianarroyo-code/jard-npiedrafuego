@@ -1247,7 +1247,21 @@ function norm(s) {
   return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
 }
 
-function autoFill() {
+// Consulta el respaldo taxonómico global (GBIF, que integra el checklist de
+// World Flora Online entre sus fuentes) para obtener nombre científico y familia
+// de plantas que no están en la base de datos local.
+async function wfoLookup(name) {
+  try {
+    var resp = await fetch('https://api.gbif.org/v1/species/match?name=' + encodeURIComponent(name) + '&kingdom=Plantae');
+    var d = await resp.json();
+    if(d && d.kingdom === 'Plantae' && (d.matchType === 'EXACT' || d.matchType === 'FUZZY') && (d.confidence||0) >= 50) {
+      return { cientifico: d.species || d.canonicalName || null, familia: d.family || null };
+    }
+  } catch(e) {}
+  return null;
+}
+
+async function autoFill() {
   try {
   var nombre = document.getElementById('mNombre').value.trim();
   if(!nombre) { toast('⚠️ Escribe el nombre de la planta primero'); return; }
@@ -1303,26 +1317,46 @@ function autoFill() {
     status.textContent = '✅ Datos completados — revisa y añade los de tu jardín';
     toast('🌿 Datos rellenados');
   } else {
-    // Solo Wikipedia
-    fetch('https://es.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(nombre))
-      .then(function(r){ return r.json(); })
-      .then(function(d){
-        if(d.extract && !d.type.includes('disambiguation')) {
-          document.getElementById('mDesc').value = d.extract.substring(0,350);
-          // Extraer nombre científico del texto
-          var match = d.extract.match(/\b([A-Z][a-z]+ [a-z]+)\b/);
-          if(match && !document.getElementById('mCientifico').value) document.getElementById('mCientifico').value = match[1];
+    // No está en la base local: consultamos taxonomía global (World Flora / GBIF) y Wikipedia en paralelo
+    Promise.all([
+      wfoLookup(nombre),
+      fetch('https://es.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(nombre)).then(function(r){ return r.json(); }).catch(function(){ return null; })
+    ]).then(function(results){
+      var wfo = results[0], wd = results[1];
+      var gotDesc = false;
+
+      function finish() {
+        var setIfEmpty = function(id, val) { var el = document.getElementById(id); if(el && val && !el.value) el.value = val; };
+        if(wfo) { setIfEmpty('mCientifico', wfo.cientifico); setIfEmpty('mFamilia', wfo.familia); }
+
+        var parts = [];
+        if(wfo && (wfo.cientifico || wfo.familia)) parts.push('nombre científico/familia (World Flora)');
+        if(gotDesc) parts.push('descripción (Wikipedia)');
+        if(parts.length) {
           status.className = 'banner banner-y';
-          status.textContent = '⚠️ Planta no en base de datos — descripción obtenida de Wikipedia. Completa el resto manualmente.';
+          status.textContent = '🌍 No está en la base local — se obtuvo ' + parts.join(' y ') + '. Completa el resto manualmente.';
         } else {
           status.className = 'banner banner-y';
-          status.textContent = '⚠️ No encontrada. Rellena los campos manualmente.';
+          status.textContent = '⚠️ No encontrada en ninguna fuente. Rellena los campos manualmente.';
         }
-      })
-      .catch(function(){
-        status.className = 'banner banner-y';
-        status.textContent = '⚠️ Sin conexión. Rellena los campos manualmente.';
-      });
+      }
+
+      if(wd && wd.extract && !(wd.type||'').includes('disambiguation')) {
+        document.getElementById('mDesc').value = wd.extract.substring(0,350);
+        gotDesc = true;
+        if(!wfo) {
+          var match = wd.extract.match(/\b([A-Z][a-zà-ÿ]+ [a-zà-ÿ]+)\b/);
+          if(match) {
+            wfoLookup(match[1]).then(function(w2){ wfo = w2 || { cientifico: match[1], familia: null }; finish(); });
+            return;
+          }
+        }
+      }
+      finish();
+    }).catch(function(){
+      status.className = 'banner banner-y';
+      status.textContent = '⚠️ Sin conexión. Rellena los campos manualmente.';
+    });
   }
 
   btn.disabled = false;
