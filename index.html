@@ -1029,28 +1029,28 @@ document.getElementById('mFrutoFileInput').onchange = async function() {
 // ============================================================
 var DB = {
   // ÁRBOLES FRUTALES
-  'higuera':      {c:'Ficus carica',f:'Moraceae',o:'Asia sudoccidental y Mediterráneo',h:'Zonas mediterráneas secas',fl:'Primavera (flores internas)',tx:'Savia irritante para la piel',cr:'Moderada',ri:'Escaso, cada 10-15 días en verano',lu:'Pleno sol',te:'5-38°C',hu:'Baja-media',su:'Bien drenado, calcáreo',ab:'Primavera, abono orgánico',po:'Invierno, ramas secas'},
-  'olivo':        {c:'Olea europaea',f:'Oleaceae',o:'Mediterráneo oriental',h:'Zonas áridas mediterráneas',fl:'Mayo-junio',tx:'No tóxico',cr:'Lenta',ri:'Muy escaso, resiste sequía',lu:'Pleno sol',te:'5-40°C',hu:'Baja',su:'Pobre, calcáreo y drenado',ab:'Anual en primavera',po:'Bienal para producción'},
-  'naranjo':      {c:'Citrus sinensis',f:'Rutaceae',o:'Asia sudoriental',h:'Zonas subtropicales',fl:'Primavera, azahar aromático',tx:'No tóxico',cr:'Moderada',ri:'Regular, cada 5-7 días',lu:'Pleno sol',te:'10-30°C',hu:'Media',su:'Arcilloso y drenado',ab:'Específico cítricos, mensual',po:'Primavera, ramas cruzadas'},
-  'limonero':     {c:'Citrus limon',f:'Rutaceae',o:'Asia meridional',h:'Subtropical',fl:'Todo el año',tx:'No tóxico',cr:'Moderada',ri:'Regular, cada 5-7 días',lu:'Pleno sol',te:'8-35°C',hu:'Media',su:'Fértil y drenado',ab:'Específico cítricos, mensual',po:'Ligera tras cosecha'},
-  'mandarino':    {c:'Citrus reticulata',f:'Rutaceae',o:'Asia',h:'Subtropical',fl:'Primavera',tx:'No tóxico',cr:'Moderada',ri:'Regular cada 5-7 días',lu:'Pleno sol',te:'10-30°C',hu:'Media',su:'Fértil y drenado',ab:'Cítricos mensual',po:'Tras cosecha'},
-  'naranjo amargo':{c:'Citrus aurantium',f:'Rutaceae',o:'Asia',h:'Subtropical',fl:'Primavera',tx:'No tóxico',cr:'Moderada',ri:'Regular cada 5-7 días',lu:'Pleno sol',te:'8-32°C',hu:'Media',su:'Fértil y drenado',ab:'Cítricos mensual',po:'Primavera'},
-  'pomelo':       {c:'Citrus paradisi',f:'Rutaceae',o:'Caribe',h:'Subtropical',fl:'Primavera',tx:'No tóxico',cr:'Moderada',ri:'Regular cada 5-7 días',lu:'Pleno sol',te:'10-32°C',hu:'Media',su:'Fértil y drenado',ab:'Cítricos mensual',po:'Primavera'},
-  'almendro':     {c:'Prunus dulcis',f:'Rosaceae',o:'Asia central y Mediterráneo',h:'Zonas mediterráneas secas',fl:'Enero-marzo, muy temprana y ornamental',tx:'No tóxico',cr:'Moderada',ri:'Escaso, muy resistente a sequía',lu:'Pleno sol',te:'5-35°C',hu:'Baja',su:'Bien drenado, calcáreo',ab:'Primavera-otoño',po:'Tras cosecha, forma'},
-  'cerezo':       {c:'Prunus avium',f:'Rosaceae',o:'Europa y Asia occidental',h:'Bosques templados',fl:'Primavera temprana, muy ornamental',tx:'Hojas y huesos tóxicos, fruto no',cr:'Moderada',ri:'Regular, cada 7-10 días',lu:'Pleno sol',te:'5-25°C',hu:'Media',su:'Fértil y bien drenado',ab:'Primavera-verano',po:'Tras cosecha o en invierno'},
-  'peral':        {c:'Pyrus communis',f:'Rosaceae',o:'Europa y Asia occidental',h:'Zonas templadas',fl:'Primavera temprana',tx:'No tóxico',cr:'Moderada',ri:'Regular, cada 7-10 días',lu:'Pleno sol',te:'5-30°C',hu:'Media',su:'Fértil, arcilloso y drenado',ab:'Primavera y verano',po:'Invierno, fructificación'},
-  'manzano':      {c:'Malus domestica',f:'Rosaceae',o:'Asia central',h:'Zonas templadas',fl:'Primavera',tx:'Semillas ligeramente tóxicas',cr:'Moderada',ri:'Regular, cada 7-10 días',lu:'Pleno sol',te:'5-25°C',hu:'Media',su:'Fértil y bien drenado',ab:'Primavera',po:'Invierno'},
-  'melocotonero': {c:'Prunus persica',f:'Rosaceae',o:'China',h:'Zonas templadas y cálidas',fl:'Primavera temprana, rosa',tx:'Huesos tóxicos, fruto no',cr:'Rápida',ri:'Regular, cada 5-7 días',lu:'Pleno sol',te:'5-30°C',hu:'Media',su:'Bien drenado y fértil',ab:'Primavera-verano',po:'Invierno, ramas fructíferas'},
-  'ciruelo':      {c:'Prunus domestica',f:'Rosaceae',o:'Europa y Asia',h:'Zonas templadas',fl:'Primavera temprana',tx:'Huesos tóxicos, fruto no',cr:'Moderada',ri:'Regular, cada 7-10 días',lu:'Pleno sol',te:'5-28°C',hu:'Media',su:'Fértil y bien drenado',ab:'Primavera',po:'Invierno'},
-  'granado':      {c:'Punica granatum',f:'Lythraceae',o:'Asia central y Mediterráneo',h:'Zonas áridas y semiáridas',fl:'Mayo-julio, flores rojo intenso',tx:'No tóxico',cr:'Moderada',ri:'Moderado, tolera sequía',lu:'Pleno sol',te:'5-38°C',hu:'Baja-media',su:'Cualquiera bien drenado',ab:'Primavera, abono equilibrado',po:'Invierno, eliminar chupones'},
-  'membrillero':  {c:'Cydonia oblonga',f:'Rosaceae',o:'Asia occidental',h:'Zonas templadas',fl:'Primavera, blanco-rosado',tx:'No tóxico',cr:'Moderada',ri:'Regular, cada 7-10 días',lu:'Pleno sol',te:'5-30°C',hu:'Media',su:'Arcilloso y bien drenado',ab:'Primavera',po:'Invierno'},
-  'aguacate':     {c:'Persea americana',f:'Lauraceae',o:'América Central',h:'Zonas tropicales y subtropicales',fl:'Primavera',tx:'Tóxico para mascotas',cr:'Rápida',ri:'Regular, cada 5-7 días, no encharcado',lu:'Pleno sol',te:'12-30°C',hu:'Media-alta',su:'Bien drenado, ligeramente ácido',ab:'Mensual en primavera-verano',po:'Mínima, solo forma'},
-  'nispero':      {c:'Eriobotrya japonica',f:'Rosaceae',o:'China y Japón',h:'Subtropical y mediterráneo',fl:'Otoño-invierno',tx:'Semillas tóxicas, fruto no',cr:'Moderada',ri:'Moderado, cada 7-10 días',lu:'Pleno sol o semisombra',te:'5-30°C',hu:'Media',su:'Bien drenado',ab:'Primavera',po:'Tras cosecha'},
-  'níspero':      {c:'Eriobotrya japonica',f:'Rosaceae',o:'China y Japón',h:'Subtropical y mediterráneo',fl:'Otoño-invierno',tx:'Semillas tóxicas, fruto no',cr:'Moderada',ri:'Moderado, cada 7-10 días',lu:'Pleno sol o semisombra',te:'5-30°C',hu:'Media',su:'Bien drenado',ab:'Primavera',po:'Tras cosecha'},
-  'higuera chumba':{c:'Opuntia ficus-indica',f:'Cactaceae',o:'México',h:'Zonas áridas y semiáridas',fl:'Primavera-verano',tx:'Espinas, fruto no tóxico',cr:'Moderada',ri:'Muy escaso, tolera sequía extrema',lu:'Pleno sol',te:'5-40°C',hu:'Muy baja',su:'Arenoso y drenado',ab:'Mínimo',po:'Control de tamaño'},
-  'vid':          {c:'Vitis vinifera',f:'Vitaceae',o:'Asia occidental y Mediterráneo',h:'Zonas templadas y mediterráneas',fl:'Primavera',tx:'No tóxico',cr:'Rápida',ri:'Moderado, tolera sequía',lu:'Pleno sol',te:'5-35°C',hu:'Baja-media',su:'Pobre, calcáreo y drenado',ab:'Primavera, abono potásico',po:'Invierno, poda de fructificación'},
-  'parra':        {c:'Vitis vinifera',f:'Vitaceae',o:'Mediterráneo',h:'Zonas templadas',fl:'Primavera',tx:'No tóxico',cr:'Rápida',ri:'Moderado',lu:'Pleno sol',te:'5-35°C',hu:'Baja-media',su:'Pobre y drenado',ab:'Primavera',po:'Invierno'},
-  'kiwi':         {c:'Actinidia deliciosa',f:'Actinidiaceae',o:'China',h:'Zonas templadas húmedas',fl:'Primavera-verano',tx:'No tóxico',cr:'Rápida',ri:'Regular, cada 5-7 días',lu:'Pleno sol o semisombra',te:'5-25°C',hu:'Media-alta',su:'Fértil, ácido y drenado',ab:'Mensual en primavera-verano',po:'Invierno, poda intensa'},
+  'higuera':      {c:'Ficus carica',f:'Moraceae',o:'Asia sudoccidental y Mediterráneo',h:'Zonas mediterráneas secas',fl:'Primavera (flores internas)',tx:'Savia irritante para la piel',cr:'Moderada',ri:'Escaso, cada 10-15 días en verano',lu:'Pleno sol',te:'5-38°C',hu:'Baja-media',su:'Bien drenado, calcáreo',ab:'Primavera, abono orgánico',po:'Invierno, ramas secas',fr:'Higo — madura en verano/otoño, pulpa dulce y carnosa'},
+  'olivo':        {c:'Olea europaea',f:'Oleaceae',o:'Mediterráneo oriental',h:'Zonas áridas mediterráneas',fl:'Mayo-junio',tx:'No tóxico',cr:'Lenta',ri:'Muy escaso, resiste sequía',lu:'Pleno sol',te:'5-40°C',hu:'Baja',su:'Pobre, calcáreo y drenado',ab:'Anual en primavera',po:'Bienal para producción',fr:'Aceituna — madura en otoño, no comestible directamente (se cura)'},
+  'naranjo':      {c:'Citrus sinensis',f:'Rutaceae',o:'Asia sudoriental',h:'Zonas subtropicales',fl:'Primavera, azahar aromático',tx:'No tóxico',cr:'Moderada',ri:'Regular, cada 5-7 días',lu:'Pleno sol',te:'10-30°C',hu:'Media',su:'Arcilloso y drenado',ab:'Específico cítricos, mensual',po:'Primavera, ramas cruzadas',fr:'Naranja — madura en invierno, jugosa y dulce'},
+  'limonero':     {c:'Citrus limon',f:'Rutaceae',o:'Asia meridional',h:'Subtropical',fl:'Todo el año',tx:'No tóxico',cr:'Moderada',ri:'Regular, cada 5-7 días',lu:'Pleno sol',te:'8-35°C',hu:'Media',su:'Fértil y drenado',ab:'Específico cítricos, mensual',po:'Ligera tras cosecha',fr:'Limón — puede fructificar casi todo el año'},
+  'mandarino':    {c:'Citrus reticulata',f:'Rutaceae',o:'Asia',h:'Subtropical',fl:'Primavera',tx:'No tóxico',cr:'Moderada',ri:'Regular cada 5-7 días',lu:'Pleno sol',te:'10-30°C',hu:'Media',su:'Fértil y drenado',ab:'Cítricos mensual',po:'Tras cosecha',fr:'Mandarina — madura en otoño-invierno, dulce y fácil de pelar'},
+  'naranjo amargo':{c:'Citrus aurantium',f:'Rutaceae',o:'Asia',h:'Subtropical',fl:'Primavera',tx:'No tóxico',cr:'Moderada',ri:'Regular cada 5-7 días',lu:'Pleno sol',te:'8-32°C',hu:'Media',su:'Fértil y drenado',ab:'Cítricos mensual',po:'Primavera',fr:'Naranja amarga — uso en mermeladas, sabor ácido'},
+  'pomelo':       {c:'Citrus paradisi',f:'Rutaceae',o:'Caribe',h:'Subtropical',fl:'Primavera',tx:'No tóxico',cr:'Moderada',ri:'Regular cada 5-7 días',lu:'Pleno sol',te:'10-32°C',hu:'Media',su:'Fértil y drenado',ab:'Cítricos mensual',po:'Primavera',fr:'Pomelo — madura en invierno, sabor ácido-amargo'},
+  'almendro':     {c:'Prunus dulcis',f:'Rosaceae',o:'Asia central y Mediterráneo',h:'Zonas mediterráneas secas',fl:'Enero-marzo, muy temprana y ornamental',tx:'No tóxico',cr:'Moderada',ri:'Escaso, muy resistente a sequía',lu:'Pleno sol',te:'5-35°C',hu:'Baja',su:'Bien drenado, calcáreo',ab:'Primavera-otoño',po:'Tras cosecha, forma',fr:'Almendra — madura a finales de verano'},
+  'cerezo':       {c:'Prunus avium',f:'Rosaceae',o:'Europa y Asia occidental',h:'Bosques templados',fl:'Primavera temprana, muy ornamental',tx:'Hojas y huesos tóxicos, fruto no',cr:'Moderada',ri:'Regular, cada 7-10 días',lu:'Pleno sol',te:'5-25°C',hu:'Media',su:'Fértil y bien drenado',ab:'Primavera-verano',po:'Tras cosecha o en invierno',fr:'Cereza — madura a finales de primavera/verano, dulce'},
+  'peral':        {c:'Pyrus communis',f:'Rosaceae',o:'Europa y Asia occidental',h:'Zonas templadas',fl:'Primavera temprana',tx:'No tóxico',cr:'Moderada',ri:'Regular, cada 7-10 días',lu:'Pleno sol',te:'5-30°C',hu:'Media',su:'Fértil, arcilloso y drenado',ab:'Primavera y verano',po:'Invierno, fructificación',fr:'Pera — madura en verano-otoño, jugosa'},
+  'manzano':      {c:'Malus domestica',f:'Rosaceae',o:'Asia central',h:'Zonas templadas',fl:'Primavera',tx:'Semillas ligeramente tóxicas',cr:'Moderada',ri:'Regular, cada 7-10 días',lu:'Pleno sol',te:'5-25°C',hu:'Media',su:'Fértil y bien drenado',ab:'Primavera',po:'Invierno',fr:'Manzana — madura en otoño'},
+  'melocotonero': {c:'Prunus persica',f:'Rosaceae',o:'China',h:'Zonas templadas y cálidas',fl:'Primavera temprana, rosa',tx:'Huesos tóxicos, fruto no',cr:'Rápida',ri:'Regular, cada 5-7 días',lu:'Pleno sol',te:'5-30°C',hu:'Media',su:'Bien drenado y fértil',ab:'Primavera-verano',po:'Invierno, ramas fructíferas',fr:'Melocotón — madura en verano, jugoso y aromático'},
+  'ciruelo':      {c:'Prunus domestica',f:'Rosaceae',o:'Europa y Asia',h:'Zonas templadas',fl:'Primavera temprana',tx:'Huesos tóxicos, fruto no',cr:'Moderada',ri:'Regular, cada 7-10 días',lu:'Pleno sol',te:'5-28°C',hu:'Media',su:'Fértil y bien drenado',ab:'Primavera',po:'Invierno',fr:'Ciruela — madura en verano'},
+  'granado':      {c:'Punica granatum',f:'Lythraceae',o:'Asia central y Mediterráneo',h:'Zonas áridas y semiáridas',fl:'Mayo-julio, flores rojo intenso',tx:'No tóxico',cr:'Moderada',ri:'Moderado, tolera sequía',lu:'Pleno sol',te:'5-38°C',hu:'Baja-media',su:'Cualquiera bien drenado',ab:'Primavera, abono equilibrado',po:'Invierno, eliminar chupones',fr:'Granada — madura en otoño, semillas jugosas'},
+  'membrillero':  {c:'Cydonia oblonga',f:'Rosaceae',o:'Asia occidental',h:'Zonas templadas',fl:'Primavera, blanco-rosado',tx:'No tóxico',cr:'Moderada',ri:'Regular, cada 7-10 días',lu:'Pleno sol',te:'5-30°C',hu:'Media',su:'Arcilloso y bien drenado',ab:'Primavera',po:'Invierno',fr:'Membrillo — madura en otoño, se come cocinado'},
+  'aguacate':     {c:'Persea americana',f:'Lauraceae',o:'América Central',h:'Zonas tropicales y subtropicales',fl:'Primavera',tx:'Tóxico para mascotas',cr:'Rápida',ri:'Regular, cada 5-7 días, no encharcado',lu:'Pleno sol',te:'12-30°C',hu:'Media-alta',su:'Bien drenado, ligeramente ácido',ab:'Mensual en primavera-verano',po:'Mínima, solo forma',fr:'Aguacate — tarda meses en madurar tras la recolección'},
+  'nispero':      {c:'Eriobotrya japonica',f:'Rosaceae',o:'China y Japón',h:'Subtropical y mediterráneo',fl:'Otoño-invierno',tx:'Semillas tóxicas, fruto no',cr:'Moderada',ri:'Moderado, cada 7-10 días',lu:'Pleno sol o semisombra',te:'5-30°C',hu:'Media',su:'Bien drenado',ab:'Primavera',po:'Tras cosecha',fr:'Níspero — madura en primavera, dulce'},
+  'níspero':      {c:'Eriobotrya japonica',f:'Rosaceae',o:'China y Japón',h:'Subtropical y mediterráneo',fl:'Otoño-invierno',tx:'Semillas tóxicas, fruto no',cr:'Moderada',ri:'Moderado, cada 7-10 días',lu:'Pleno sol o semisombra',te:'5-30°C',hu:'Media',su:'Bien drenado',ab:'Primavera',po:'Tras cosecha',fr:'Níspero — madura en primavera, dulce'},
+  'higuera chumba':{c:'Opuntia ficus-indica',f:'Cactaceae',o:'México',h:'Zonas áridas y semiáridas',fl:'Primavera-verano',tx:'Espinas, fruto no tóxico',cr:'Moderada',ri:'Muy escaso, tolera sequía extrema',lu:'Pleno sol',te:'5-40°C',hu:'Muy baja',su:'Arenoso y drenado',ab:'Mínimo',po:'Control de tamaño',fr:'Higo chumbo — madura en verano-otoño, quitar espinas antes de comer'},
+  'vid':          {c:'Vitis vinifera',f:'Vitaceae',o:'Asia occidental y Mediterráneo',h:'Zonas templadas y mediterráneas',fl:'Primavera',tx:'No tóxico',cr:'Rápida',ri:'Moderado, tolera sequía',lu:'Pleno sol',te:'5-35°C',hu:'Baja-media',su:'Pobre, calcáreo y drenado',ab:'Primavera, abono potásico',po:'Invierno, poda de fructificación',fr:'Uva — madura en verano-otoño, en racimos'},
+  'parra':        {c:'Vitis vinifera',f:'Vitaceae',o:'Mediterráneo',h:'Zonas templadas',fl:'Primavera',tx:'No tóxico',cr:'Rápida',ri:'Moderado',lu:'Pleno sol',te:'5-35°C',hu:'Baja-media',su:'Pobre y drenado',ab:'Primavera',po:'Invierno',fr:'Uva — madura en verano-otoño, en racimos'},
+  'kiwi':         {c:'Actinidia deliciosa',f:'Actinidiaceae',o:'China',h:'Zonas templadas húmedas',fl:'Primavera-verano',tx:'No tóxico',cr:'Rápida',ri:'Regular, cada 5-7 días',lu:'Pleno sol o semisombra',te:'5-25°C',hu:'Media-alta',su:'Fértil, ácido y drenado',ab:'Mensual en primavera-verano',po:'Invierno, poda intensa',fr:'Kiwi — madura en otoño, pulpa verde ácida'},
 
   // ÁRBOLES ORNAMENTALES Y FORESTALES
   'cipres':       {c:'Cupressus sempervirens',f:'Cupressaceae',o:'Mediterráneo oriental',h:'Zonas mediterráneas secas',fl:'Invierno-primavera (conos)',tx:'No tóxico',cr:'Moderada',ri:'Escaso una vez establecido',lu:'Pleno sol',te:'5-35°C',hu:'Baja',su:'Cualquiera bien drenado',ab:'Primavera',po:'Mantenimiento de forma'},
@@ -1072,10 +1072,10 @@ var DB = {
   'fresno':       {c:'Fraxinus excelsior',f:'Oleaceae',o:'Europa y Asia',h:'Bosques templados y riberas',fl:'Primavera',tx:'No tóxico',cr:'Rápida',ri:'Moderado-abundante',lu:'Pleno sol',te:'5-30°C',hu:'Media-alta',su:'Fértil y húmedo',ab:'Primavera',po:'Invierno'},
   'aligustre':    {c:'Ligustrum lucidum',f:'Oleaceae',o:'Asia oriental',h:'Zonas templadas',fl:'Verano, blanco aromático',tx:'Frutos tóxicos',cr:'Rápida',ri:'Moderado',lu:'Sol o semisombra',te:'5-30°C',hu:'Media',su:'Cualquiera bien drenado',ab:'Primavera',po:'Forma cuando necesario'},
   'robinia':      {c:'Robinia pseudoacacia',f:'Fabaceae',o:'América del Norte',h:'Bosques templados secos',fl:'Primavera, blanco muy aromático',tx:'Corteza y semillas tóxicas',cr:'Rápida',ri:'Escaso',lu:'Pleno sol',te:'-20-35°C',hu:'Baja',su:'Cualquiera bien drenado',ab:'Mínimo',po:'Invierno'},
-  'algarrobo':    {c:'Ceratonia siliqua',f:'Fabaceae',o:'Mediterráneo oriental',h:'Zonas mediterráneas áridas',fl:'Otoño',tx:'No tóxico, frutos comestibles',cr:'Lenta',ri:'Muy escaso, muy resistente a sequía',lu:'Pleno sol',te:'5-40°C',hu:'Baja',su:'Pobre, calcáreo y drenado',ab:'Mínimo',po:'Mínima'},
-  'moral':        {c:'Morus nigra',f:'Moraceae',o:'Asia occidental',h:'Zonas templadas',fl:'Primavera',tx:'No tóxico',cr:'Moderada',ri:'Moderado',lu:'Pleno sol',te:'5-35°C',hu:'Media',su:'Fértil y drenado',ab:'Primavera',po:'Invierno'},
-  'morera':       {c:'Morus alba',f:'Moraceae',o:'China',h:'Zonas templadas',fl:'Primavera',tx:'No tóxico',cr:'Rápida',ri:'Moderado',lu:'Pleno sol',te:'5-38°C',hu:'Media',su:'Cualquiera bien drenado',ab:'Primavera',po:'Invierno'},
-  'caqui':        {c:'Diospyros kaki',f:'Ebenaceae',o:'China y Japón',h:'Zonas templadas cálidas',fl:'Primavera-verano',tx:'No tóxico',cr:'Moderada',ri:'Regular, cada 7-10 días',lu:'Pleno sol',te:'5-35°C',hu:'Media',su:'Fértil y bien drenado',ab:'Primavera',po:'Invierno'},
+  'algarrobo':    {c:'Ceratonia siliqua',f:'Fabaceae',o:'Mediterráneo oriental',h:'Zonas mediterráneas áridas',fl:'Otoño',tx:'No tóxico, frutos comestibles',cr:'Lenta',ri:'Muy escaso, muy resistente a sequía',lu:'Pleno sol',te:'5-40°C',hu:'Baja',su:'Pobre, calcáreo y drenado',ab:'Mínimo',po:'Mínima',fr:'Algarroba — madura en otoño, vaina dulce'},
+  'moral':        {c:'Morus nigra',f:'Moraceae',o:'Asia occidental',h:'Zonas templadas',fl:'Primavera',tx:'No tóxico',cr:'Moderada',ri:'Moderado',lu:'Pleno sol',te:'5-35°C',hu:'Media',su:'Fértil y drenado',ab:'Primavera',po:'Invierno',fr:'Mora — madura en verano, muy jugosa'},
+  'morera':       {c:'Morus alba',f:'Moraceae',o:'China',h:'Zonas templadas',fl:'Primavera',tx:'No tóxico',cr:'Rápida',ri:'Moderado',lu:'Pleno sol',te:'5-38°C',hu:'Media',su:'Cualquiera bien drenado',ab:'Primavera',po:'Invierno',fr:'Mora blanca — madura en verano'},
+  'caqui':        {c:'Diospyros kaki',f:'Ebenaceae',o:'China y Japón',h:'Zonas templadas cálidas',fl:'Primavera-verano',tx:'No tóxico',cr:'Moderada',ri:'Regular, cada 7-10 días',lu:'Pleno sol',te:'5-35°C',hu:'Media',su:'Fértil y bien drenado',ab:'Primavera',po:'Invierno',fr:'Caqui — madura en otoño, muy dulce cuando está blando'},
 
   // ARBUSTOS Y SETOS
   'rosal':        {c:'Rosa sp.',f:'Rosaceae',o:'Asia, Europa y América del Norte',h:'Zonas templadas',fl:'Primavera-otoño, repetitiva',tx:'Espinas, no tóxico',cr:'Moderada',ri:'Regular, cada 3-5 días en verano',lu:'Pleno sol mínimo 6h',te:'5-30°C',hu:'Media',su:'Rico, arcilloso y drenado',ab:'Quincenal en floración',po:'Final de invierno'},
@@ -1691,6 +1691,28 @@ async function autoFill() {
     // aparezca en la pestaña Riegos sin tener que elegirla a mano
     var freqSel = document.getElementById('mFrecRiego');
     if(freqSel && !freqSel.value && e.ri) freqSel.value = inferFrecuencia(e.ri);
+    // Si la ficha local sabe que la especie da fruto, marca la casilla y
+    // rellena sus notas automáticamente en vez de dejarlo manual
+    if(e.fr) marcarFruto(e.fr);
+  }
+
+  function marcarFruto(notas) {
+    var check = document.getElementById('mTieneFruto');
+    if(!check || check.checked) return;
+    check.checked = true;
+    toggleFrutoFields(true);
+    s('mFrutoNotas', notas);
+  }
+  function s(id, val) { var el = document.getElementById(id); if(el && val) el.value = val; }
+
+  // Heurística simple para detectar si un texto describe una planta frutal
+  // cuando no está en la base local (para intentar marcar el fruto igualmente)
+  function detectaFruto(text) {
+    if(!text) return false;
+    var t = norm(text);
+    var tieneFruto = t.indexOf('fruto') >= 0 || t.indexOf('frutos') >= 0 || t.indexOf('frutal') >= 0;
+    var esComestible = t.indexOf('comestible') >= 0 || t.indexOf('cultiva') >= 0 || t.indexOf('cosecha') >= 0 || t.indexOf('cultivo') >= 0;
+    return tieneFruto && esComestible;
   }
 
   if(entry) {
@@ -1731,6 +1753,7 @@ async function autoFill() {
       if(wd && wd.extract && !(wd.type||'').includes('disambiguation')) {
         document.getElementById('mDesc').value = wd.extract.substring(0,350);
         gotDesc = true;
+        if(detectaFruto(wd.extract)) marcarFruto('');
         if(!wfo) {
           var match = wd.extract.match(/\b([A-Z][a-zà-ÿ]+ [a-zà-ÿ]+)\b/);
           if(match) {
