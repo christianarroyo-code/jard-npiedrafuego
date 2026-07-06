@@ -551,6 +551,26 @@ function markDirty(id) {
   persistDirtyIds();
 }
 
+// Registro de plantas eliminadas ("tombstones"): si el borrado en la nube
+// falla o se solapa con una sincronización en curso, sin esto la planta podía
+// "resucitar" en el siguiente sync porque la copia vieja seguía en Firestore
+var deletedIds = {};
+async function loadDeletedIds() {
+  try {
+    var d = await idbGet('jpf_deleted');
+    if(d && typeof d === 'object') deletedIds = d;
+  } catch(e) {}
+}
+function persistDeletedIds() {
+  idbSet('jpf_deleted', deletedIds).catch(function(){});
+}
+function markDeleted(id) {
+  deletedIds[id] = true;
+  delete dirtyIds[id];
+  persistDeletedIds();
+  persistDirtyIds();
+}
+
 // Descarga una imagen ya subida (URL de Firebase Storage) y la convierte a
 // base64 para poder incrustarla en el PDF (jsPDF no acepta URLs directamente)
 async function urlToDataURL(url) {
@@ -678,7 +698,8 @@ async function save() {
 async function loadFromCloud() {
   showSyncStatus('🔄 Cargando...', '#e67e22');
   await loadDirtyIds();
-  var local = await loadLocalCatalog();
+  await loadDeletedIds();
+  var local = (await loadLocalCatalog()).filter(function(l){ return !deletedIds[l.id]; });
 
   if(!db) {
     catalog = local;
@@ -690,6 +711,18 @@ async function loadFromCloud() {
   try {
     var snap = await db.collection('plants').get();
     var cloud = snap.docs.map(function(d){ return d.data(); });
+
+    // Si una planta borrada sigue apareciendo en la nube (el borrado falló o se
+    // solapó con esta sincronización), la quitamos del resultado y reintentamos
+    // borrarla de verdad — así un borrado nunca puede "resucitar"
+    var stillDeleted = cloud.filter(function(p){ return deletedIds[p.id]; });
+    if(stillDeleted.length) {
+      cloud = cloud.filter(function(p){ return !deletedIds[p.id]; });
+      stillDeleted.forEach(function(p) {
+        db.collection('plants').doc(String(p.id)).delete().catch(function(){});
+        deleteStorageFolder('plants/' + p.id);
+      });
+    }
 
     var cloudIdSet = {};
     cloud.forEach(function(p){ cloudIdSet[p.id] = true; });
@@ -1900,13 +1933,12 @@ async function delPlant(id) {
   var p = catalog.find(function(x){ return x.id===id; });
   if(!p || !confirm('¿Eliminar "'+p.nombre_comun+'"?')) return;
   catalog = catalog.filter(function(x){ return x.id!==id; });
-  delete dirtyIds[id];
-  persistDirtyIds();
+  markDeleted(id); // tombstone: aunque falle el borrado en la nube, no debe volver a aparecer
   await saveLocalCatalog(catalog);
   updateHeader();
   closeModal(); renderCatalog();
   toast('🗑️ Eliminada');
-  try { await db.collection('plants').doc(String(id)).delete(); } catch(e) {}
+  if(db) { try { await db.collection('plants').doc(String(id)).delete(); } catch(e) {} }
   deleteStorageFolder('plants/' + id); // sin esperar: limpieza de fotos en segundo plano
 }
 
