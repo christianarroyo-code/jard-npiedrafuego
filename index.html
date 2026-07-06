@@ -163,6 +163,25 @@ select.finput option{background:white}
 .zicon.riego{background:linear-gradient(150deg,var(--red-bg),var(--amber-bg))}
 .zcount.riego{color:#a4302f}
 
+/* ZONA CON FOTO */
+.zcard.photo{position:relative;padding:0;overflow:hidden;min-height:148px;display:flex;align-items:flex-end;text-align:left}
+.zcard.photo img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:transform .35s var(--ease)}
+.zcard.photo:hover img{transform:scale(1.07)}
+.zcard.photo .zcard-scrim{position:absolute;inset:0;background:linear-gradient(0deg,rgba(14,43,27,.85) 0%,rgba(14,43,27,.25) 55%,rgba(14,43,27,0) 100%);pointer-events:none}
+.zcard.photo.riego .zcard-scrim{background:linear-gradient(0deg,rgba(90,20,20,.85) 0%,rgba(90,20,20,.25) 55%,rgba(90,20,20,0) 100%)}
+.zcard.photo .zcard-info{position:relative;z-index:1;padding:13px 14px}
+.zcard.photo .zcard-info h4{color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.3)}
+.zcard.photo .zcard-info .zcount{color:rgba(255,255,255,.88)}
+.zcard-fallback-icon{display:none;position:absolute;inset:0;align-items:center;justify-content:center;font-size:2rem;background:linear-gradient(150deg,var(--green-pale),var(--green-xpale))}
+.zcard.riego .zcard-fallback-icon{background:linear-gradient(150deg,var(--red-bg),var(--amber-bg))}
+.zcard.photo-failed img{display:none}
+.zcard.photo-failed .zcard-scrim{display:none}
+.zcard.photo-failed .zcard-fallback-icon{display:flex}
+.zcard.photo-failed .zcard-info{padding:14px;text-align:center;width:100%}
+.zcard.photo-failed .zcard-info h4{color:var(--ink);text-shadow:none;margin-top:63px}
+.zcard.photo-failed .zcard-info .zcount{color:var(--ink-muted)}
+.zcard.photo-failed.riego .zcard-info .zcount{color:#a4302f}
+
 /* RIEGO */
 .rh{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
 .rh h2{font-family:'Work Sans',sans-serif;font-size:1.4rem;font-weight:700;letter-spacing:-.01em}
@@ -249,6 +268,18 @@ select.finput option{background:white}
 /* EDIT BANNER */
 .editbanner{background:var(--ember-pale);border:1px solid rgba(217,115,36,.25);border-radius:var(--rs);padding:10px 14px;margin-bottom:14px;display:flex;align-items:center;gap:10px;font-size:.8rem;font-weight:700;color:var(--ember-dark)}
 .editbanner button{margin-left:auto;background:none;border:none;color:var(--ember-dark);text-decoration:underline;font-weight:800;font-size:.76rem;cursor:pointer;font-family:'Work Sans',sans-serif}
+
+/* RECORTADOR DE FOTO */
+.cropoverlay{position:fixed;inset:0;background:rgba(9,20,12,.92);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px}
+.cropbox{background:var(--surface);border-radius:var(--r);padding:20px;max-width:360px;width:100%;box-shadow:var(--shadow-lg);display:flex;flex-direction:column;align-items:center;gap:16px}
+.crop-title{font-family:'Work Sans',sans-serif;font-weight:700;font-size:.85rem;color:var(--ink);align-self:flex-start}
+.cropframe{position:relative;width:280px;height:280px;max-width:100%;aspect-ratio:1;border-radius:50%;overflow:hidden;background:#0c1c11;touch-action:none;cursor:grab;box-shadow:0 0 0 3px #fff,0 0 0 4px var(--border-mid),0 8px 30px rgba(0,0,0,.35)}
+.cropframe:active{cursor:grabbing}
+.cropframe img{position:absolute;left:0;top:0;user-select:none;-webkit-user-drag:none}
+.cropzoomrow{display:flex;align-items:center;gap:10px;width:100%}
+.cropzoomrow input[type=range]{flex:1;accent-color:var(--green-800)}
+.cropactions{display:flex;gap:10px;width:100%}
+.cropactions .btn{flex:1;justify-content:center}
 
 /* QR */
 #qrBox{display:flex;flex-direction:column;align-items:center;gap:17px;padding:36px 22px}
@@ -411,6 +442,24 @@ select.finput option{background:white}
   <div class="modal" id="modalBox"></div>
 </div>
 
+<!-- RECORTADOR DE FOTO -->
+<div class="cropoverlay" id="cropOverlay" style="display:none">
+  <div class="cropbox">
+    <p class="crop-title">Encuadra la foto</p>
+    <div class="cropframe" id="cropFrame">
+      <img id="cropImg" src="" alt="" draggable="false">
+    </div>
+    <div class="cropzoomrow">
+      <span>🔍</span>
+      <input type="range" id="cropZoom" min="100" max="300" value="100">
+    </div>
+    <div class="cropactions">
+      <button class="btn btn-o" onclick="cancelCrop()">Cancelar</button>
+      <button class="btn btn-g" onclick="confirmCrop()">Usar foto</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 <div id="debug" style="display:none;position:fixed;top:0;left:0;right:0;background:#c0392b;color:white;padding:12px;font-size:.75rem;font-weight:700;z-index:999;word-break:break-all;max-height:200px;overflow-y:auto"></div>
 
@@ -564,6 +613,115 @@ function readFileAsDataURL(file) {
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
+}
+
+// ============================================================
+// RECORTADOR DE FOTO (encuadre con arrastre y zoom antes de guardar)
+// ============================================================
+var cropCtx = null;
+
+function openCropper(dataUrl, onConfirm, onCancel) {
+  var overlay = document.getElementById('cropOverlay');
+  var imgEl = document.getElementById('cropImg');
+  var frame = document.getElementById('cropFrame');
+  overlay.style.display = 'flex';
+  imgEl.src = dataUrl;
+  imgEl.onload = function() {
+    var frameSize = frame.clientWidth;
+    var natW = imgEl.naturalWidth, natH = imgEl.naturalHeight;
+    cropCtx = {
+      natW: natW, natH: natH, frameSize: frameSize,
+      baseScale: frameSize / Math.min(natW, natH),
+      zoom: 1, left: 0, top: 0, dragging: false,
+      startX: 0, startY: 0, startLeft: 0, startTop: 0,
+      onConfirm: onConfirm, onCancel: onCancel
+    };
+    document.getElementById('cropZoom').value = 100;
+    // centra la imagen en el marco al abrir
+    var d = cropImgDims();
+    cropCtx.left = (frameSize - d.w) / 2;
+    cropCtx.top = (frameSize - d.h) / 2;
+    clampCropOffset();
+    renderCropTransform();
+  };
+}
+
+function cropImgDims() {
+  var s = cropCtx.baseScale * cropCtx.zoom;
+  return { w: cropCtx.natW * s, h: cropCtx.natH * s, s: s };
+}
+
+function clampCropOffset() {
+  var d = cropImgDims();
+  cropCtx.left = Math.min(0, Math.max(cropCtx.frameSize - d.w, cropCtx.left));
+  cropCtx.top = Math.min(0, Math.max(cropCtx.frameSize - d.h, cropCtx.top));
+}
+
+function renderCropTransform() {
+  var d = cropImgDims();
+  var imgEl = document.getElementById('cropImg');
+  imgEl.style.width = d.w + 'px';
+  imgEl.style.height = d.h + 'px';
+  imgEl.style.left = cropCtx.left + 'px';
+  imgEl.style.top = cropCtx.top + 'px';
+}
+
+function applyCropZoom(newZoom) {
+  var oldD = cropImgDims();
+  var cx = (cropCtx.frameSize / 2 - cropCtx.left) / oldD.w;
+  var cy = (cropCtx.frameSize / 2 - cropCtx.top) / oldD.h;
+  cropCtx.zoom = newZoom;
+  var newD = cropImgDims();
+  cropCtx.left = cropCtx.frameSize / 2 - cx * newD.w;
+  cropCtx.top = cropCtx.frameSize / 2 - cy * newD.h;
+  clampCropOffset();
+  renderCropTransform();
+}
+
+function cropPointerDown(e) {
+  if(!cropCtx) return;
+  cropCtx.dragging = true;
+  cropCtx.startX = e.clientX; cropCtx.startY = e.clientY;
+  cropCtx.startLeft = cropCtx.left; cropCtx.startTop = cropCtx.top;
+}
+function cropPointerMove(e) {
+  if(!cropCtx || !cropCtx.dragging) return;
+  cropCtx.left = cropCtx.startLeft + (e.clientX - cropCtx.startX);
+  cropCtx.top = cropCtx.startTop + (e.clientY - cropCtx.startY);
+  clampCropOffset();
+  renderCropTransform();
+}
+function cropPointerUp() { if(cropCtx) cropCtx.dragging = false; }
+
+document.getElementById('cropFrame').addEventListener('pointerdown', cropPointerDown);
+window.addEventListener('pointermove', cropPointerMove);
+window.addEventListener('pointerup', cropPointerUp);
+document.getElementById('cropZoom').oninput = function() { applyCropZoom(this.value / 100); };
+
+function confirmCrop() {
+  if(!cropCtx) return;
+  var outputSize = 900;
+  var canvas = document.createElement('canvas');
+  canvas.width = outputSize; canvas.height = outputSize;
+  var ctx = canvas.getContext('2d');
+  var s = cropCtx.baseScale * cropCtx.zoom;
+  var sx = (-cropCtx.left) / s;
+  var sy = (-cropCtx.top) / s;
+  var sSize = cropCtx.frameSize / s;
+  ctx.drawImage(document.getElementById('cropImg'), sx, sy, sSize, sSize, 0, 0, outputSize, outputSize);
+  var result = canvas.toDataURL('image/jpeg', 0.88);
+  var cb = cropCtx.onConfirm;
+  closeCropper();
+  if(cb) cb(result);
+}
+function cancelCrop() {
+  var cb = cropCtx && cropCtx.onCancel;
+  closeCropper();
+  if(cb) cb();
+}
+function closeCropper() {
+  document.getElementById('cropOverlay').style.display = 'none';
+  cropCtx = null;
 }
 
 // Guardar en JSONBin (compartido) + localStorage (backup)
@@ -775,15 +933,26 @@ document.getElementById('mFileInput').onchange = async function() {
   var file = this.files[0];
   if(!file) return;
   var zone = document.getElementById('mUploadZone');
-  zone.innerHTML = '<div class="uicon">⏳</div><p>Procesando foto…</p>';
+  zone.innerHTML = '<div class="uicon">⏳</div><p>Cargando foto…</p>';
   var raw = await readFileAsDataURL(file);
-  // Comprimimos SIEMPRE antes de guardar en el dispositivo: una foto de móvil
-  // sin comprimir (varios MB) agota el almacenamiento local en pocas decenas
-  // de plantas y hace que las últimas añadidas se "pierdan" al recargar
-  mImg = await compressImg(raw, 1280, 0.75);
-  zone.innerHTML = '<img src="' + mImg + '" alt="planta" style="width:100%;max-height:240px;object-fit:cover;border-radius:14px;display:block">';
-  zone.classList.add('has-img');
-  zone.onclick = null;
+  openCropper(raw, function(cropped) {
+    // Comprimimos SIEMPRE antes de guardar en el dispositivo: una foto de móvil
+    // sin comprimir (varios MB) agota el almacenamiento local en pocas decenas
+    // de plantas y hace que las últimas añadidas se "pierdan" al recargar
+    compressImg(cropped, 1280, 0.8).then(function(finalImg) {
+      mImg = finalImg;
+      zone.innerHTML = '<img src="' + mImg + '" alt="planta" style="width:100%;max-height:240px;object-fit:cover;border-radius:14px;display:block">';
+      zone.classList.add('has-img');
+      zone.onclick = null;
+    });
+  }, function() {
+    // Cancelado: si no había foto previa, vuelve al estado vacío
+    if(!mImg) {
+      zone.innerHTML = '<div class="uicon">📸</div><p><strong>Foto de la planta</strong><br>Opcional — toca para añadir</p>';
+    } else {
+      zone.innerHTML = '<img src="' + mImg + '" alt="planta" style="width:100%;max-height:240px;object-fit:cover;border-radius:14px;display:block">';
+    }
+  });
 };
 
 // ============================================================
@@ -1616,6 +1785,54 @@ var currentZone = null; // null = mostrar rejilla de zonas; si no, nombre de la 
 var zoneList = []; // nombres de zona de la última rejilla renderizada (para openZone por índice)
 var SIN_UBICACION = 'Sin ubicación';
 
+// Foto de stock de reserva por palabra clave, solo para zonas sin ninguna
+// planta con foto todavía. Si la URL fallara al cargar, la tarjeta cae de
+// forma automática al icono con degradado (ver onerror en renderZoneGrid).
+var ZONE_STOCK_PHOTOS = [
+  { kw:['terraza','balcon','balcón','patio'], url:'https://images.unsplash.com/photo-1533037499408-8471b6a0bc60?auto=format&fit=crop&w=500&q=65' },
+  { kw:['jardin','jardín','huerto','exterior','fachada','frontal'], url:'https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?auto=format&fit=crop&w=500&q=65' },
+  { kw:['entrada','puerta'], url:'https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?auto=format&fit=crop&w=500&q=65' },
+  { kw:['cocina'], url:'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?auto=format&fit=crop&w=500&q=65' },
+  { kw:['ventana'], url:'https://images.unsplash.com/photo-1416879595882-3373a0480b5b?auto=format&fit=crop&w=500&q=65' },
+  { kw:['salon','salón','sala','comedor'], url:'https://images.unsplash.com/photo-1567538096630-e0c55bd6374c?auto=format&fit=crop&w=500&q=65' },
+  { kw:['dormitorio','habitacion','habitación'], url:'https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?auto=format&fit=crop&w=500&q=65' },
+  { kw:['bano','baño'], url:'https://images.unsplash.com/photo-1620626011761-996317b8d101?auto=format&fit=crop&w=500&q=65' }
+];
+function stockZonePhoto(zoneName) {
+  if(zoneName === SIN_UBICACION) return null;
+  var n = norm(zoneName);
+  for(var i=0;i<ZONE_STOCK_PHOTOS.length;i++) {
+    for(var j=0;j<ZONE_STOCK_PHOTOS[i].kw.length;j++) {
+      if(n.indexOf(norm(ZONE_STOCK_PHOTOS[i].kw[j])) >= 0) return ZONE_STOCK_PHOTOS[i].url;
+    }
+  }
+  return null;
+}
+// La foto de una zona es, por defecto, la de una de sus propias plantas (más
+// auténtico) y solo si ninguna tiene foto aún, se usa una de stock por palabra clave
+function findZonePhoto(zoneName) {
+  var withPhoto = catalog.find(function(p){ return (p.ubicacion || SIN_UBICACION) === zoneName && p.imagen; });
+  if(withPhoto) return withPhoto.imagen;
+  return stockZonePhoto(zoneName);
+}
+function zoneCardHTML(z, idx, n, countLabel, onclickFn, extraClass) {
+  var photo = findZonePhoto(z);
+  var icon = (z===SIN_UBICACION?'❔':(extraClass==='riego'?'💧':'📍'));
+  if(photo) {
+    return '<div class="zcard photo '+(extraClass||'')+'" onclick="'+onclickFn+'('+idx+')">' +
+      '<img src="'+photo+'" alt="" onerror="this.parentElement.classList.add(\'photo-failed\')">' +
+      '<div class="zcard-fallback-icon">'+icon+'</div>' +
+      '<div class="zcard-scrim"></div>' +
+      '<div class="zcard-info"><h4>'+z+'</h4><span class="zcount">'+countLabel+'</span></div>' +
+    '</div>';
+  }
+  return '<div class="zcard '+(extraClass||'')+'" onclick="'+onclickFn+'('+idx+')">' +
+    '<div class="zicon '+(extraClass||'')+'">'+icon+'</div>' +
+    '<h4>'+z+'</h4>' +
+    '<span class="zcount '+(extraClass||'')+'">'+countLabel+'</span>' +
+  '</div>';
+}
+
 function renderCatalog() {
   updateHeader();
   if(!catalog.length) {
@@ -1650,11 +1867,7 @@ function renderZoneGrid() {
   zoneList = Object.keys(counts).sort(function(a,b){ return a.localeCompare(b, 'es'); });
   document.getElementById('catalogContent').innerHTML = '<div class="zgrid">' + zoneList.map(function(z, idx){
     var n = counts[z];
-    return '<div class="zcard" onclick="openZone('+idx+')">' +
-      '<div class="zicon">'+(z===SIN_UBICACION?'❔':'📍')+'</div>' +
-      '<h4>'+z+'</h4>' +
-      '<span class="zcount">'+n+' planta'+(n===1?'':'s')+'</span>' +
-    '</div>';
+    return zoneCardHTML(z, idx, n, n+' planta'+(n===1?'':'s'), 'openZone', '');
   }).join('') + '</div>';
 }
 
@@ -1930,11 +2143,7 @@ function renderRiegoZoneGrid(needsWater) {
   riegoZoneList = Object.keys(counts).sort(function(a,b){ return a.localeCompare(b, 'es'); });
   document.getElementById('riegoContent').innerHTML = '<div class="zgrid">' + riegoZoneList.map(function(z, idx){
     var n = counts[z];
-    return '<div class="zcard riego" onclick="openRiegoZone('+idx+')">' +
-      '<div class="zicon riego">💧</div>' +
-      '<h4>'+z+'</h4>' +
-      '<span class="zcount riego">'+n+' por regar</span>' +
-    '</div>';
+    return zoneCardHTML(z, idx, n, n+' por regar', 'openRiegoZone', 'riego');
   }).join('') + '</div>';
 }
 
