@@ -428,6 +428,7 @@ select.finput option{background:white}
     <h2>Catálogo</h2>
     <div class="toolrow">
       <button class="toolbtn" onclick="syncNow()">🔄 Sync</button>
+      <button class="toolbtn" onclick="fixMissingFrequencies()">💧 Corregir riegos</button>
       <button class="toolbtn ember" onclick="exportPDF()">📄 PDF</button>
       <button class="toolbtn accent" onclick="exportExcel()">📊 Excel</button>
     </div>
@@ -1558,6 +1559,33 @@ async function wfoLookup(name) {
   return null;
 }
 
+// Deduce una frecuencia de riego (para el desplegable que controla la pestaña
+// Riegos) a partir del texto descriptivo de riego (el que rellena el
+// autocompletado). Sin esto, una planta podía tener toda la info de cuidados
+// pero nunca aparecer en Riegos porque ese desplegable se quedaba vacío.
+function inferFrecuencia(riegoText) {
+  if(!riegoText) return '';
+  var t = norm(riegoText);
+  var m = t.match(/cada\s*(\d+)(?:\s*-\s*(\d+))?\s*d/);
+  if(m) {
+    var lo = parseInt(m[1],10), hi = m[2]?parseInt(m[2],10):lo;
+    var avg = (lo+hi)/2;
+    if(avg <= 1.5) return 'diario';
+    if(avg <= 3) return 'cada2';
+    if(avg <= 10) return 'semanal';
+    if(avg <= 20) return 'quincenal';
+    return 'mensual';
+  }
+  if(t.indexOf('diari') >= 0) return 'diario';
+  if(t.indexOf('semanal') >= 0) return 'semanal';
+  if(t.indexOf('quincenal') >= 0) return 'quincenal';
+  if(t.indexOf('mensual') >= 0) return 'mensual';
+  if(t.indexOf('escaso') >= 0 || t.indexOf('sequia') >= 0 || t.indexOf('resiste') >= 0) return 'mensual';
+  if(t.indexOf('abundante') >= 0 || t.indexOf('frecuente') >= 0) return 'cada2';
+  if(t.indexOf('regular') >= 0 || t.indexOf('moderad') >= 0) return 'semanal';
+  return 'semanal';
+}
+
 async function autoFill() {
   try {
   var nombre = document.getElementById('mNombre').value.trim();
@@ -1601,6 +1629,10 @@ async function autoFill() {
     s('mAbono', e.ab);
     s('mPoda', e.po);
     if(e.cr) document.getElementById('mCrecimiento').value = e.cr;
+    // Traduce el texto de riego a una frecuencia real para que la planta
+    // aparezca en la pestaña Riegos sin tener que elegirla a mano
+    var freqSel = document.getElementById('mFrecRiego');
+    if(freqSel && !freqSel.value && e.ri) freqSel.value = inferFrecuencia(e.ri);
   }
 
   if(entry) {
@@ -2198,6 +2230,27 @@ function markWater(id) {
   markDirty(id);
   save(); renderRiego();
   toast('💧 "'+p.nombre_comun+'" regada');
+}
+
+// Corrige de golpe las plantas guardadas antes de que el autocompletado
+// dedujera la frecuencia de riego: si tienen texto de riego pero no
+// frecuencia elegida, deduce una para que aparezcan en Riegos
+function fixMissingFrequencies() {
+  var fixed = 0;
+  catalog.forEach(function(p) {
+    if(!p.frecuencia_riego && p.cuidados && p.cuidados.riego) {
+      p.frecuencia_riego = inferFrecuencia(p.cuidados.riego);
+      markDirty(p.id);
+      fixed++;
+    }
+  });
+  if(fixed) {
+    save();
+    renderCatalog();
+    toast('💧 Frecuencia añadida a ' + fixed + ' planta' + (fixed===1?'':'s'));
+  } else {
+    toast('✅ No hay plantas con riego pendiente de corregir');
+  }
 }
 
 // ============================================================
