@@ -162,6 +162,19 @@ select.finput option{background:white}
 .tag.n{background:var(--bg);color:var(--ink-muted);border:1px solid var(--border)}
 .pchev{color:var(--border-mid);font-size:1.3rem;flex-shrink:0;font-weight:700}
 
+/* ZONAS */
+.zgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+@media(min-width:600px){.zgrid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:14px}}
+.zcard{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:22px 14px;text-align:center;cursor:pointer;transition:all .22s var(--ease);box-shadow:var(--shadow-xs)}
+.zcard:hover{transform:translateY(-3px);box-shadow:var(--shadow-sm);border-color:var(--border-mid)}
+.zicon{width:52px;height:52px;margin:0 auto 11px;border-radius:50%;background:linear-gradient(150deg,var(--green-pale),var(--green-xpale));display:flex;align-items:center;justify-content:center;font-size:1.5rem}
+.zcard h4{font-family:'Lora',serif;font-size:.92rem;font-weight:600;color:var(--ink);margin-bottom:3px;line-height:1.3}
+.zcount{font-size:.7rem;color:var(--ink-muted);font-weight:700}
+.zonebar{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+.zback{background:var(--surface);border:1.5px solid var(--border-mid);border-radius:var(--rp);padding:8px 14px;font-family:'Nunito',sans-serif;font-size:.78rem;font-weight:800;color:var(--green-800);cursor:pointer;transition:all .2s var(--ease);flex-shrink:0}
+.zback:hover{background:var(--green-pale);border-color:var(--green-light)}
+.zonebar h3{font-family:'Lora',serif;font-size:1.15rem;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
 /* RIEGO */
 .rh{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
 .rh h2{font-family:'Lora',serif;font-size:1.4rem;font-weight:600;letter-spacing:-.01em}
@@ -197,11 +210,11 @@ select.finput option{background:white}
 .mhero-scrim{position:absolute;left:0;right:0;bottom:0;height:70%;background:linear-gradient(0deg,rgba(14,43,27,.82),rgba(14,43,27,0));pointer-events:none}
 .mhero-title{position:absolute;left:22px;right:60px;bottom:16px;color:#fff}
 .mhero-title h2{font-family:'Lora',serif;font-size:1.45rem;font-weight:600;text-shadow:0 2px 10px rgba(0,0,0,.25)}
-.mhero-title em{font-family:'Lora',serif;font-style:italic;color:#D8ECD5;font-size:.9rem}
+.mhero-title em{font-family:'Lora',serif;font-style:italic;color:#D8ECD5;font-size:.9rem;display:block;margin-top:4px}
 .mhead{padding:18px 22px;border-bottom:1px solid var(--border)}
 .mhead h2{font-family:'Lora',serif;font-size:1.4rem;font-weight:600;color:var(--ink)}
-.mhead em{font-family:'Lora',serif;font-style:italic;color:var(--green-700);font-size:.9rem}
-.mbadge{display:inline-block;padding:4px 11px;border-radius:var(--rp);font-size:.7rem;font-weight:800;background:rgba(255,255,255,.22);backdrop-filter:blur(6px);color:#fff;margin-top:9px;border:1px solid rgba(255,255,255,.35)}
+.mhead em{font-family:'Lora',serif;font-style:italic;color:var(--green-700);font-size:.9rem;display:block;margin-top:4px}
+.mbadge{display:inline-block;padding:4px 11px;border-radius:var(--rp);font-size:.7rem;font-weight:800;background:rgba(255,255,255,.22);backdrop-filter:blur(6px);color:#fff;margin-top:12px;border:1px solid rgba(255,255,255,.35)}
 .mbadge.static{background:var(--green);color:#fff;border:none}
 
 /* MODAL TABS */
@@ -1707,23 +1720,72 @@ function daysLeft(p) {
   return Math.max(0, ({diario:1,cada2:2,semanal:7,quincenal:15,mensual:30}[p.frecuencia_riego]||7) - diff);
 }
 
+var currentZone = null; // null = mostrar rejilla de zonas; si no, nombre de la zona abierta
+var zoneList = []; // nombres de zona de la última rejilla renderizada (para openZone por índice)
+var SIN_UBICACION = 'Sin ubicación';
+
 function renderCatalog() {
   updateHeader();
-  var q = (document.getElementById('searchQ').value||'').toLowerCase();
-  var list = q ? catalog.filter(function(p){
-    return (p.nombre_comun||'').toLowerCase().includes(q) ||
-           (p.nombre_cientifico||'').toLowerCase().includes(q) ||
-           (p.familia||'').toLowerCase().includes(q) ||
-           (p.ubicacion||'').toLowerCase().includes(q) ||
-           (p.nombre_propio||'').toLowerCase().includes(q);
-  }) : catalog;
-
-  if(!list.length) {
-    document.getElementById('catalogContent').innerHTML = '<div class="empty"><div class="ei">'+(catalog.length?'🔍':'🌱')+'</div><h3>'+(catalog.length?'Sin resultados':'Catálogo vacío')+'</h3><p>'+(catalog.length?'Prueba con otro término':'Identifica y guarda tu primera planta')+'</p></div>';
+  if(!catalog.length) {
+    document.getElementById('catalogContent').innerHTML = '<div class="empty"><div class="ei">🌱</div><h3>Catálogo vacío</h3><p>Identifica y guarda tu primera planta</p></div>';
     return;
   }
 
-  document.getElementById('catalogContent').innerHTML = '<div class="plist">' + list.map(function(p){
+  var q = (document.getElementById('searchQ').value||'').toLowerCase();
+  if(q) {
+    var results = catalog.filter(function(p){
+      return (p.nombre_comun||'').toLowerCase().includes(q) ||
+             (p.nombre_cientifico||'').toLowerCase().includes(q) ||
+             (p.familia||'').toLowerCase().includes(q) ||
+             (p.ubicacion||'').toLowerCase().includes(q) ||
+             (p.nombre_propio||'').toLowerCase().includes(q);
+    });
+    renderPlantRows(results, null);
+    return;
+  }
+
+  if(currentZone === null) {
+    renderZoneGrid();
+  } else {
+    var list = catalog.filter(function(p){ return (p.ubicacion || SIN_UBICACION) === currentZone; });
+    renderPlantRows(list, currentZone);
+  }
+}
+
+function renderZoneGrid() {
+  var counts = {};
+  catalog.forEach(function(p){ var z = p.ubicacion || SIN_UBICACION; counts[z] = (counts[z]||0) + 1; });
+  zoneList = Object.keys(counts).sort(function(a,b){ return a.localeCompare(b, 'es'); });
+  document.getElementById('catalogContent').innerHTML = '<div class="zgrid">' + zoneList.map(function(z, idx){
+    var n = counts[z];
+    return '<div class="zcard" onclick="openZone('+idx+')">' +
+      '<div class="zicon">'+(z===SIN_UBICACION?'❔':'📍')+'</div>' +
+      '<h4>'+z+'</h4>' +
+      '<span class="zcount">'+n+' planta'+(n===1?'':'s')+'</span>' +
+    '</div>';
+  }).join('') + '</div>';
+}
+
+function openZone(idx) {
+  currentZone = zoneList[idx];
+  document.getElementById('searchQ').value = '';
+  renderCatalog();
+}
+
+function backToZones() {
+  currentZone = null;
+  renderCatalog();
+}
+
+function renderPlantRows(list, zoneLabel) {
+  var header = zoneLabel !== null ? ('<div class="zonebar"><button class="zback" onclick="backToZones()">‹ Zonas</button><h3>'+zoneLabel+'</h3></div>') : '';
+
+  if(!list.length) {
+    document.getElementById('catalogContent').innerHTML = header + '<div class="empty"><div class="ei">🔍</div><h3>Sin resultados</h3><p>Prueba con otro término'+(zoneLabel!==null?' o vuelve a las zonas':'')+'</p></div>';
+    return;
+  }
+
+  document.getElementById('catalogContent').innerHTML = header + '<div class="plist">' + list.map(function(p){
     var d = daysLeft(p);
     var dotColor = p.frecuencia_riego ? (d===0?'#DC3D3D':d===1?'#DD8B1F':'#2E7D32') : '';
     return '<div class="prow" onclick="openPlant('+p.id+')">' +
@@ -1736,7 +1798,7 @@ function renderCatalog() {
         '<em>'+( p.nombre_cientifico||'Sin identificar')+'</em>' +
         '<div class="ptags">' +
           (p.familia?'<span class="tag">'+p.familia+'</span>':'') +
-          (p.ubicacion?'<span class="tag">📍 '+p.ubicacion+'</span>':'') +
+          (zoneLabel===null && p.ubicacion?'<span class="tag">📍 '+p.ubicacion+'</span>':'') +
           (p.estado_salud?'<span class="tag">'+hl(p.estado_salud)+'</span>':'') +
           ((p.observaciones||[]).length?'<span class="tag n">📝 '+p.observaciones.length+'</span>':'') +
         '</div>' +
