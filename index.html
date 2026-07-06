@@ -448,7 +448,6 @@ select.finput option{background:white}
     <h2>Catálogo</h2>
     <div class="toolrow">
       <button class="toolbtn" onclick="syncNow()">🔄 Sync</button>
-      <button class="toolbtn" onclick="fixMissingFrequencies()">💧 Corregir riegos</button>
       <button class="toolbtn ember" onclick="exportPDF()">📄 PDF</button>
       <button class="toolbtn accent" onclick="exportExcel()">📊 Excel</button>
     </div>
@@ -462,7 +461,13 @@ select.finput option{background:white}
 
 <!-- RIEGO -->
 <div class="panel" id="panel-riego">
-  <div class="rh"><h2>Control de riegos</h2><span id="rDate" style="font-size:.8rem;color:var(--ink-muted);font-weight:700"></span></div>
+  <div class="rh">
+    <h2>Control de riegos</h2>
+    <div class="toolrow">
+      <button class="toolbtn" onclick="fixMissingFrequencies()">💧 Corregir riegos</button>
+      <span id="rDate" style="font-size:.8rem;color:var(--ink-muted);font-weight:700"></span>
+    </div>
+  </div>
   <div id="riegoContent"></div>
 </div>
 
@@ -2331,7 +2336,7 @@ function fixMissingFrequencies() {
   });
   if(fixed) {
     save();
-    renderCatalog();
+    renderRiego();
     toast('💧 Frecuencia añadida a ' + fixed + ' planta' + (fixed===1?'':'s'));
   } else {
     toast('✅ No hay plantas con riego pendiente de corregir');
