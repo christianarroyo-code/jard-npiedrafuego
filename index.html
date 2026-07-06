@@ -86,16 +86,6 @@ main{max-width:1120px;margin:0 auto;padding:18px 14px calc(var(--nav-h) + 26px)}
 .upload-zone p{font-size:.85rem;color:var(--ink-muted);font-weight:600;line-height:1.5}
 .upload-zone strong{color:var(--ink)}
 
-/* VIEWFINDER (camera-style capture) */
-.viewfinder{position:relative;border-radius:var(--r);overflow:hidden;background:radial-gradient(circle at 50% 38%,#1c3524,#0c1c11 78%);min-height:360px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;cursor:pointer;margin-bottom:14px;padding:30px 24px;box-shadow:var(--shadow-md);text-align:center}
-.viewfinder-ring{width:180px;height:180px;border-radius:50%;border:2.5px dashed rgba(255,255,255,.5);display:flex;align-items:center;justify-content:center;font-size:2.6rem;color:rgba(255,255,255,.85)}
-.viewfinder p{color:rgba(255,255,255,.88);font-size:.82rem;font-weight:700;line-height:1.5;max-width:260px}
-.viewfinder .shutter{width:60px;height:60px;border-radius:50%;background:rgba(255,255,255,.14);border:3px solid rgba(255,255,255,.4);display:flex;align-items:center;justify-content:center;transition:transform .2s var(--ease)}
-.viewfinder .shutter::after{content:'';width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,var(--green-light),var(--green-700));box-shadow:0 4px 14px rgba(0,0,0,.3)}
-.viewfinder:hover .shutter{transform:scale(1.06)}
-.viewfinder.has-img{padding:0;min-height:340px;background:#0c1c11}
-.viewfinder.has-img img{width:100%;height:340px;object-fit:cover;display:block}
-
 /* FIELDS */
 .fgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:13px}
 .field{display:flex;flex-direction:column;gap:6px}
@@ -136,11 +126,6 @@ select.finput option{background:white}
 .btn-autofill:hover{transform:translateY(-1px);box-shadow:0 8px 20px rgba(217,115,36,.36)}
 .btn-autofill:disabled{background:var(--border-mid);cursor:not-allowed;box-shadow:none}
 
-/* MODE BUTTONS */
-.mode-row{display:flex;gap:6px;margin-bottom:16px;background:var(--surface-soft);border:1px solid var(--border);border-radius:var(--r);padding:5px}
-.mbtn{flex:1;padding:11px;border-radius:calc(var(--r) - 5px);font-family:'Nunito',sans-serif;font-size:.84rem;font-weight:800;cursor:pointer;transition:all .25s var(--ease);border:none;background:transparent;color:var(--ink-muted)}
-.mbtn.active{background:var(--surface);color:var(--green-800);box-shadow:var(--shadow-sm)}
-
 /* CATALOG */
 .cat-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;flex-wrap:wrap;gap:10px}
 .cat-top h2{font-family:'Lora',serif;font-size:1.4rem;font-weight:600;letter-spacing:-.01em}
@@ -174,6 +159,9 @@ select.finput option{background:white}
 .zback{background:var(--surface);border:1.5px solid var(--border-mid);border-radius:var(--rp);padding:8px 14px;font-family:'Nunito',sans-serif;font-size:.78rem;font-weight:800;color:var(--green-800);cursor:pointer;transition:all .2s var(--ease);flex-shrink:0}
 .zback:hover{background:var(--green-pale);border-color:var(--green-light)}
 .zonebar h3{font-family:'Lora',serif;font-size:1.15rem;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.zcard.riego{border-color:rgba(220,61,61,.18)}
+.zicon.riego{background:linear-gradient(150deg,var(--red-bg),var(--amber-bg))}
+.zcount.riego{color:#a4302f}
 
 /* RIEGO */
 .rh{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
@@ -320,12 +308,6 @@ select.finput option{background:white}
 
 <!-- IDENTIFY -->
 <div class="panel active" id="panel-identify">
-  <div class="mode-row">
-    <button class="mbtn active" id="mb-manual" onclick="setMode('manual')">✏️ Manual</button>
-    <button class="mbtn" id="mb-foto" onclick="setMode('foto')">📷 Foto</button>
-  </div>
-
-  <!-- MANUAL MODE -->
   <div id="panel-manual">
     <div class="editbanner" id="editBanner" style="display:none">✏️ Editando planta <button onclick="resetManual()">Cancelar</button></div>
     <div class="banner banner-g">✏️ Escribe el nombre y pulsa <strong>✨ Rellenar</strong> para autocompletar datos botánicos</div>
@@ -397,29 +379,6 @@ select.finput option{background:white}
 
     <button class="btn-main" id="btnSaveManual" onclick="saveManual()">💾 Guardar planta</button>
   </div>
-
-  <!-- FOTO MODE -->
-  <div id="panel-foto" style="display:none">
-    <div class="viewfinder" id="fUploadZone" onclick="document.getElementById('fFileInput').click()">
-      <div class="viewfinder-ring">🌿</div>
-      <p>Coloca la planta en el centro y toca para abrir cámara o galería</p>
-      <div class="shutter"></div>
-    </div>
-    <input type="file" id="fFileInput" accept="image/*" capture="environment" style="display:none">
-    <div class="card">
-      <div class="fgrid">
-        <div class="field"><label class="flabel">Ubicación</label><input class="finput" type="text" id="fUbicacion" placeholder="ej. Sector A"></div>
-        <div class="field"><label class="flabel">Código propio</label><input class="finput" type="text" id="fCodigo" placeholder="ej. JPF-001"></div>
-        <div class="field"><label class="flabel">Fecha plantación</label><input class="finput" type="date" id="fFecha"></div>
-        <div class="field"><label class="flabel">Frecuencia riego</label>
-          <select class="finput" id="fFrecRiego"><option value="">--</option><option value="diario">Diario</option><option value="cada2">Cada 2 días</option><option value="semanal">Semanal</option><option value="quincenal">Quincenal</option><option value="mensual">Mensual</option></select>
-        </div>
-        <div class="field"><label class="flabel">Notas</label><input class="finput" type="text" id="fNotas" placeholder="Observaciones…"></div>
-      </div>
-    </div>
-    <button class="btn-main" onclick="saveFoto()">💾 Guardar con foto</button>
-    <div id="fotoResult" style="margin-top:14px"></div>
-  </div>
 </div>
 
 <!-- CATALOG -->
@@ -480,7 +439,6 @@ try {
 
 var catalog = [];
 var mImg = null;
-var fImg = null;
 var obsImg = null;
 var editingId = null; // id de la planta en edición, null = alta nueva
 var syncStatus = 'idle'; // idle, syncing, error
@@ -811,16 +769,6 @@ function tab(name) {
 }
 
 // ============================================================
-// MODE SWITCH
-// ============================================================
-function setMode(mode) {
-  document.getElementById('mb-manual').classList.toggle('active', mode === 'manual');
-  document.getElementById('mb-foto').classList.toggle('active', mode === 'foto');
-  document.getElementById('panel-manual').style.display = mode === 'manual' ? 'block' : 'none';
-  document.getElementById('panel-foto').style.display = mode === 'foto' ? 'block' : 'none';
-}
-
-// ============================================================
 // MANUAL UPLOAD
 // ============================================================
 document.getElementById('mFileInput').onchange = async function() {
@@ -834,21 +782,6 @@ document.getElementById('mFileInput').onchange = async function() {
   // de plantas y hace que las últimas añadidas se "pierdan" al recargar
   mImg = await compressImg(raw, 1280, 0.75);
   zone.innerHTML = '<img src="' + mImg + '" alt="planta" style="width:100%;max-height:240px;object-fit:cover;border-radius:14px;display:block">';
-  zone.classList.add('has-img');
-  zone.onclick = null;
-};
-
-// ============================================================
-// FOTO UPLOAD
-// ============================================================
-document.getElementById('fFileInput').onchange = async function() {
-  var file = this.files[0];
-  if(!file) return;
-  var zone = document.getElementById('fUploadZone');
-  zone.innerHTML = '<div class="viewfinder-ring">⏳</div><p>Procesando foto…</p>';
-  var raw = await readFileAsDataURL(file);
-  fImg = await compressImg(raw, 1280, 0.75);
-  zone.innerHTML = '<img src="' + fImg + '" alt="planta" style="width:100%;height:100%;object-fit:cover;display:block">';
   zone.classList.add('has-img');
   zone.onclick = null;
 };
@@ -1619,7 +1552,6 @@ function editPlant(id) {
   editingId = id;
   closeModal();
   tab('identify');
-  setMode('manual');
 
   var s = function(elId, val) { var el = document.getElementById(elId); if(el) el.value = val || ''; };
   s('mNombre', p.nombre_comun); s('mCientifico', p.nombre_cientifico); s('mFamilia', p.familia);
@@ -1666,46 +1598,6 @@ function resetManual() {
   var s = document.getElementById('fillStatus'); if(s) s.style.display = 'none';
   var btn = document.getElementById('btnSaveManual'); if(btn) btn.textContent = '💾 Guardar planta';
   var banner = document.getElementById('editBanner'); if(banner) banner.style.display = 'none';
-}
-
-// ============================================================
-// SAVE FOTO
-// ============================================================
-function saveFoto() {
-  var g = function(id) { var el = document.getElementById(id); return el ? el.value.trim() : ''; };
-  var plant = {
-    id: Date.now(),
-    nombre_comun: 'Planta ' + new Date().toLocaleDateString('es-ES'),
-    nombre_cientifico: '',
-    familia: '', descripcion: '', origen_geografico: '', habitat_natural: '',
-    floracion: '', toxicidad: '', velocidad_crecimiento: '', curiosidades: '',
-    usos: [], cuidados: { riego:'', luz:'', temperatura:'', humedad:'', suelo:'', abono:'', poda:'' },
-    imagen: fImg || null,
-    ubicacion: g('fUbicacion'),
-    nombre_propio: g('fCodigo'),
-    fecha_plantacion: g('fFecha'),
-    frecuencia_riego: g('fFrecRiego'),
-    estado_salud: '',
-    notas: g('fNotas'),
-    confianza: 'Foto',
-    ultimo_riego: null,
-    observaciones: [],
-    galeria: [],
-    fecha_registro: new Date().toISOString()
-  };
-  catalog.unshift(plant);
-  markDirty(plant.id);
-  save();
-  toast('✅ Foto guardada — edítala desde el catálogo para completar datos');
-  // Reset foto mode
-  fImg = null;
-  var zone = document.getElementById('fUploadZone');
-  zone.innerHTML = '<div class="viewfinder-ring">🌿</div><p>Coloca la planta en el centro y toca para abrir cámara o galería</p><div class="shutter"></div>';
-  zone.classList.remove('has-img');
-  zone.onclick = function(){ document.getElementById('fFileInput').click(); };
-  document.getElementById('fFileInput').value = '';
-  ['fUbicacion','fCodigo','fFecha','fNotas'].forEach(function(id){ var el = document.getElementById(id); if(el) el.value = ''; });
-  document.getElementById('fFrecRiego').value = '';
 }
 
 // ============================================================
@@ -2007,20 +1899,62 @@ async function delPlant(id) {
 // ============================================================
 // RIEGO
 // ============================================================
+var currentRiegoZone = null; // null = rejilla de zonas; si no, zona abierta
+var riegoZoneList = [];
+
 function renderRiego() {
   var rdateStr = new Date().toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long'});
   document.getElementById('rDate').textContent = rdateStr.charAt(0).toUpperCase() + rdateStr.slice(1);
   if(!catalog.length) { document.getElementById('riegoContent').innerHTML = '<div class="empty"><div class="ei">💧</div><h3>Sin plantas</h3><p>Añade plantas al catálogo.</p></div>'; return; }
-  var w = catalog.filter(function(p){ return p.frecuencia_riego; });
-  var nw = catalog.filter(function(p){ return !p.frecuencia_riego; });
-  var urg = w.filter(function(p){ return daysLeft(p)===0; });
-  var soon = w.filter(function(p){ return daysLeft(p)===1; });
-  var ok = w.filter(function(p){ return daysLeft(p)>1; });
-  var html = '';
+
+  // Solo cuentan las que necesitan agua ya (hoy) o muy pronto (mañana) — en
+  // cuanto se marcan como regadas dejan de aparecer hasta que vuelvan a tocar
+  var needsWater = catalog.filter(function(p){ return p.frecuencia_riego && daysLeft(p) <= 1; });
+
+  if(currentRiegoZone === null) {
+    renderRiegoZoneGrid(needsWater);
+  } else {
+    var zonePlants = needsWater.filter(function(p){ return (p.ubicacion || SIN_UBICACION) === currentRiegoZone; });
+    if(!zonePlants.length) { currentRiegoZone = null; renderRiegoZoneGrid(needsWater); return; }
+    renderRiegoList(zonePlants, currentRiegoZone);
+  }
+}
+
+function renderRiegoZoneGrid(needsWater) {
+  if(!needsWater.length) {
+    document.getElementById('riegoContent').innerHTML = '<div class="empty"><div class="ei">✅</div><h3>Todo regado</h3><p>Ninguna planta necesita agua hoy ni mañana.</p></div>';
+    return;
+  }
+  var counts = {};
+  needsWater.forEach(function(p){ var z = p.ubicacion || SIN_UBICACION; counts[z] = (counts[z]||0) + 1; });
+  riegoZoneList = Object.keys(counts).sort(function(a,b){ return a.localeCompare(b, 'es'); });
+  document.getElementById('riegoContent').innerHTML = '<div class="zgrid">' + riegoZoneList.map(function(z, idx){
+    var n = counts[z];
+    return '<div class="zcard riego" onclick="openRiegoZone('+idx+')">' +
+      '<div class="zicon riego">💧</div>' +
+      '<h4>'+z+'</h4>' +
+      '<span class="zcount riego">'+n+' por regar</span>' +
+    '</div>';
+  }).join('') + '</div>';
+}
+
+function openRiegoZone(idx) {
+  currentRiegoZone = riegoZoneList[idx];
+  renderRiego();
+}
+
+function backToRiegoZones() {
+  currentRiegoZone = null;
+  renderRiego();
+}
+
+function renderRiegoList(list, zoneLabel) {
+  var header = '<div class="zonebar"><button class="zback" onclick="backToRiegoZones()">‹ Zonas</button><h3>'+zoneLabel+'</h3></div>';
+  var urg = list.filter(function(p){ return daysLeft(p)===0; });
+  var soon = list.filter(function(p){ return daysLeft(p)===1; });
+  var html = header;
   if(urg.length) html += '<div class="rsec u">🚨 Regar hoy ('+urg.length+')</div><div class="wlist">'+urg.map(function(p){ return rCard(p,'u'); }).join('')+'</div>';
   if(soon.length) html += '<div class="rsec s">⏰ Mañana ('+soon.length+')</div><div class="wlist">'+soon.map(function(p){ return rCard(p,'s'); }).join('')+'</div>';
-  if(ok.length) html += '<div class="rsec ok">✅ Al día ('+ok.length+')</div><div class="wlist">'+ok.map(function(p){ return rCard(p,'ok'); }).join('')+'</div>';
-  if(nw.length) html += '<div class="rsec">Sin frecuencia ('+nw.length+')</div><div class="wlist">'+nw.map(function(p){ return rCard(p,''); }).join('')+'</div>';
   document.getElementById('riegoContent').innerHTML = html;
 }
 
