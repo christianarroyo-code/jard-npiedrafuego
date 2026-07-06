@@ -173,12 +173,12 @@ select.finput option{background:white}
 .zcount.riego{color:#a4302f}
 
 /* ZONA CON FOTO */
-.zcard.photo{position:relative;padding:0;overflow:hidden;aspect-ratio:4/5;display:flex;align-items:flex-end;text-align:left}
+.zcard.photo{position:relative;padding:0;overflow:hidden;aspect-ratio:4/5;display:flex;align-items:flex-end;justify-content:center;text-align:center}
 .zcard.photo img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:transform .35s var(--ease)}
 .zcard.photo:hover img{transform:scale(1.07)}
 .zcard.photo .zcard-scrim{position:absolute;inset:0;background:linear-gradient(0deg,rgba(14,43,27,.85) 0%,rgba(14,43,27,.25) 55%,rgba(14,43,27,0) 100%);pointer-events:none}
 .zcard.photo.riego .zcard-scrim{background:linear-gradient(0deg,rgba(90,20,20,.85) 0%,rgba(90,20,20,.25) 55%,rgba(90,20,20,0) 100%)}
-.zcard.photo .zcard-info{position:relative;z-index:1;padding:13px 14px}
+.zcard.photo .zcard-info{position:relative;z-index:1;padding:13px 14px;width:100%}
 .zcard.photo .zcard-info h4{color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.3)}
 .zcard.photo .zcard-info .zcount{color:rgba(255,255,255,.88)}
 .zcard-fallback-icon{display:none;position:absolute;inset:0;align-items:center;justify-content:center;font-size:2rem;background:linear-gradient(150deg,var(--green-pale),var(--green-xpale))}
@@ -278,6 +278,11 @@ select.finput option{background:white}
 /* EDIT BANNER */
 .editbanner{background:var(--ember-pale);border:1px solid rgba(217,115,36,.25);border-radius:var(--rs);padding:10px 14px;margin-bottom:14px;display:flex;align-items:center;gap:10px;font-size:.8rem;font-weight:700;color:var(--ember-dark)}
 .editbanner button{margin-left:auto;background:none;border:none;color:var(--ember-dark);text-decoration:underline;font-weight:800;font-size:.76rem;cursor:pointer;font-family:'Work Sans',sans-serif}
+
+/* FRUTO */
+.fruit-toggle{display:flex;align-items:center;gap:10px;cursor:pointer}
+.fruit-toggle input{width:19px;height:19px;accent-color:var(--green-800);cursor:pointer;flex-shrink:0}
+.fruto-thumb{width:150px;height:150px;object-fit:cover;border-radius:12px;display:block;margin-bottom:9px;cursor:pointer;box-shadow:var(--shadow-xs)}
 
 /* RECORTADOR DE FOTO */
 .cropoverlay{position:fixed;inset:0;background:rgba(9,20,12,.92);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px}
@@ -418,6 +423,21 @@ select.finput option{background:white}
       </div>
     </div>
 
+    <div class="card">
+      <label class="fruit-toggle">
+        <input type="checkbox" id="mTieneFruto" onchange="toggleFrutoFields(this.checked)">
+        <span class="card-eyebrow" style="margin-bottom:0"><span class="dot"></span>🍎 Esta planta da fruto</span>
+      </label>
+      <div id="frutoFields" style="display:none;margin-top:14px">
+        <div class="upload-zone" id="mFrutoUploadZone" onclick="document.getElementById('mFrutoFileInput').click()">
+          <div class="uicon">🍇</div>
+          <p><strong>Foto del fruto</strong><br>Opcional — toca para añadir</p>
+        </div>
+        <input type="file" id="mFrutoFileInput" accept="image/*" style="display:none">
+        <div class="field" style="margin-top:12px"><label class="flabel">Notas del fruto</label><input class="finput" type="text" id="mFrutoNotas" placeholder="ej. Madura en otoño, sabor dulce"></div>
+      </div>
+    </div>
+
     <button class="btn-main" id="btnSaveManual" onclick="saveManual()">💾 Guardar planta</button>
   </div>
 </div>
@@ -499,6 +519,7 @@ try {
 
 var catalog = [];
 var mImg = null;
+var mFrutoImg = null;
 var obsImg = null;
 var editingId = null; // id de la planta en edición, null = alta nueva
 var syncStatus = 'idle'; // idle, syncing, error
@@ -813,6 +834,9 @@ async function save() {
       // Cada foto se sube a Storage (no se guarda como texto embebido), así que
       // el tamaño del catálogo en Firestore ya no tiene un límite práctico
       p.imagen = await uploadIfNeeded(p.imagen, 'plants/' + pid + '/main.jpg');
+      if(p.fruto_imagen) {
+        p.fruto_imagen = await uploadIfNeeded(p.fruto_imagen, 'plants/' + pid + '/fruto.jpg');
+      }
       if(p.galeria && p.galeria.length) {
         p.galeria = await Promise.all(p.galeria.map(function(g, idx){ return uploadIfNeeded(g, 'plants/' + pid + '/gallery/' + idx + '.jpg'); }));
       }
@@ -962,6 +986,35 @@ document.getElementById('mFileInput').onchange = async function() {
       zone.innerHTML = '<div class="uicon">📸</div><p><strong>Foto de la planta</strong><br>Opcional — toca para añadir</p>';
     } else {
       zone.innerHTML = '<img src="' + mImg + '" alt="planta" style="width:100%;max-height:240px;object-fit:cover;border-radius:14px;display:block">';
+    }
+  });
+};
+
+// ============================================================
+// FRUTO
+// ============================================================
+function toggleFrutoFields(checked) {
+  document.getElementById('frutoFields').style.display = checked ? 'block' : 'none';
+}
+
+document.getElementById('mFrutoFileInput').onchange = async function() {
+  var file = this.files[0];
+  if(!file) return;
+  var zone = document.getElementById('mFrutoUploadZone');
+  zone.innerHTML = '<div class="uicon">⏳</div><p>Cargando foto…</p>';
+  var raw = await readFileAsDataURL(file);
+  openCropper(raw, function(cropped) {
+    compressImg(cropped, 1000, 0.78).then(function(finalImg) {
+      mFrutoImg = finalImg;
+      zone.innerHTML = '<img src="' + mFrutoImg + '" alt="fruto" style="width:100%;max-height:240px;object-fit:cover;border-radius:14px;display:block">';
+      zone.classList.add('has-img');
+      zone.onclick = null;
+    });
+  }, function() {
+    if(!mFrutoImg) {
+      zone.innerHTML = '<div class="uicon">🍇</div><p><strong>Foto del fruto</strong><br>Opcional — toca para añadir</p>';
+    } else {
+      zone.innerHTML = '<img src="' + mFrutoImg + '" alt="fruto" style="width:100%;max-height:240px;object-fit:cover;border-radius:14px;display:block">';
     }
   });
 };
@@ -1728,7 +1781,10 @@ function saveManual() {
     procedencia: g('mProcedencia'),
     precio: g('mPrecio'),
     maceta: g('mMaceta'),
-    notas: g('mNotas')
+    notas: g('mNotas'),
+    fruto_tiene: document.getElementById('mTieneFruto').checked,
+    fruto_imagen: document.getElementById('mTieneFruto').checked ? (mFrutoImg || null) : null,
+    fruto_notas: document.getElementById('mTieneFruto').checked ? g('mFrutoNotas') : ''
   };
 
   if(editingId) {
@@ -1787,6 +1843,20 @@ function editPlant(id) {
   }
   zone.onclick = function(){ document.getElementById('mFileInput').click(); };
 
+  document.getElementById('mTieneFruto').checked = !!p.fruto_tiene;
+  toggleFrutoFields(!!p.fruto_tiene);
+  s('mFrutoNotas', p.fruto_notas);
+  mFrutoImg = p.fruto_imagen || null;
+  var frutoZone = document.getElementById('mFrutoUploadZone');
+  if(mFrutoImg) {
+    frutoZone.innerHTML = '<img src="'+mFrutoImg+'" alt="fruto" style="width:100%;max-height:240px;object-fit:cover;border-radius:14px;display:block">';
+    frutoZone.classList.add('has-img');
+  } else {
+    frutoZone.innerHTML = '<div class="uicon">🍇</div><p><strong>Foto del fruto</strong><br>Opcional — toca para añadir</p>';
+    frutoZone.classList.remove('has-img');
+  }
+  frutoZone.onclick = function(){ document.getElementById('mFrutoFileInput').click(); };
+
   var btn = document.getElementById('btnSaveManual'); if(btn) btn.textContent = '💾 Actualizar planta';
   var banner = document.getElementById('editBanner'); if(banner) banner.style.display = 'flex';
   window.scrollTo({top:0, behavior:'smooth'});
@@ -1794,12 +1864,21 @@ function editPlant(id) {
 
 function resetManual() {
   mImg = null;
+  mFrutoImg = null;
   editingId = null;
   var zone = document.getElementById('mUploadZone');
   zone.innerHTML = '<div class="uicon">📸</div><p><strong>Foto de la planta</strong><br>Opcional — toca para añadir</p>';
   zone.classList.remove('has-img');
   zone.onclick = function(){ document.getElementById('mFileInput').click(); };
   document.getElementById('mFileInput').value = '';
+  var frutoZone = document.getElementById('mFrutoUploadZone');
+  frutoZone.innerHTML = '<div class="uicon">🍇</div><p><strong>Foto del fruto</strong><br>Opcional — toca para añadir</p>';
+  frutoZone.classList.remove('has-img');
+  frutoZone.onclick = function(){ document.getElementById('mFrutoFileInput').click(); };
+  document.getElementById('mFrutoFileInput').value = '';
+  document.getElementById('mTieneFruto').checked = false;
+  document.getElementById('mFrutoNotas').value = '';
+  toggleFrutoFields(false);
   ['mNombre','mCientifico','mFamilia','mDesc','mOrigen','mHabitat','mFloracion','mToxicidad',
    'mCuriosidades','mUsos','mRiego','mLuz','mTemp','mHumedad','mSuelo','mAbono','mPoda',
    'mUbicacion','mCodigo','mFecha','mProcedencia','mPrecio','mMaceta','mNotas'].forEach(function(id){
@@ -1970,6 +2049,11 @@ function openPlant(id) {
   var galHtml = '<div class="ggrid">' + galItems +
     '<label class="gadd">➕<span>Añadir</span><input type="file" accept="image/*" style="display:none" onchange="addGalleryPhoto('+p.id+',this)"></label>' +
   '</div>';
+  var frutoHtml = p.fruto_tiene ?
+    '<div class="isec full"><h3>🍎 Fruto</h3>' +
+      (p.fruto_imagen ? '<img src="'+p.fruto_imagen+'" alt="fruto" class="fruto-thumb" onclick="window.open(this.src,\'_blank\')">' : '') +
+      (p.fruto_notas ? '<p>'+p.fruto_notas+'</p>' : '') +
+    '</div>' : '';
 
   var heroHtml = p.imagen ?
     '<div class="mherowrap"><img class="mhero" src="'+p.imagen+'" alt="">' +
@@ -2018,6 +2102,7 @@ function openPlant(id) {
         (p.curiosidades?'<div class="isec full"><h3>Curiosidades</h3><p>'+p.curiosidades+'</p></div>':'') +
         (usos?'<div class="isec full"><h3>Usos</h3><div class="ptags">'+usos+'</div></div>':'') +
         (p.notas?'<div class="isec full"><h3>Notas</h3><p>'+p.notas+'</p></div>':'') +
+        frutoHtml +
         '<div class="isec full"><h3>Galería de fotos</h3>'+galHtml+'</div>' +
       '</div>' +
     '</div>' +
