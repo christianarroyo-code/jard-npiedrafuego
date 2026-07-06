@@ -1875,6 +1875,25 @@ function editPlant(id) {
   toggleFrutoFields(!!p.fruto_tiene);
   s('mFrutoNotas', p.fruto_notas);
   mFrutoImg = p.fruto_imagen || null;
+
+  // Si la planta es de una especie frutal conocida pero se registró antes de
+  // tener esta casilla (o se dejó sin notas), autocompleta desde la base local
+  var dbEntry = DB[norm(p.nombre_comun || '')];
+  if(!dbEntry) {
+    var dbKeys = Object.keys(DB);
+    for(var ki = 0; ki < dbKeys.length; ki++) {
+      var kNorm = norm(dbKeys[ki]), nNorm = norm(p.nombre_comun || '');
+      if(kNorm === nNorm || nNorm.includes(kNorm) || kNorm.includes(nNorm)) { dbEntry = DB[dbKeys[ki]]; break; }
+    }
+  }
+  if(dbEntry && dbEntry.fr) {
+    if(!p.fruto_tiene || (!p.fruto_notas && !p.fruto_imagen)) {
+      document.getElementById('mTieneFruto').checked = true;
+      toggleFrutoFields(true);
+    }
+    var frutoNotasEl = document.getElementById('mFrutoNotas');
+    if(frutoNotasEl && !frutoNotasEl.value) frutoNotasEl.value = dbEntry.fr;
+  }
   var frutoZone = document.getElementById('mFrutoUploadZone');
   if(mFrutoImg) {
     frutoZone.innerHTML = '<img src="'+mFrutoImg+'" alt="fruto" style="width:100%;max-height:240px;object-fit:cover;border-radius:14px;display:block">';
